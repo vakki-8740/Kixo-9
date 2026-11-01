@@ -17,9 +17,8 @@
       <img src="logo/zpekLogo.webp" alt="Logo" class="logo" />
       <span class="brand">COMPLAIN PAGE<small>Admin Panel</small></span>
       <div class="header-actions">
-        <button type="button" class="settings-btn menu-btn" id="menuBtn" title="Menu" aria-label="Menu" aria-expanded="false">
+        <button type="button" class="menu-btn" id="menuBtn" title="Menu" aria-label="Open menu" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-          Menu
         </button>
       </div>
     </div>
@@ -34,23 +33,34 @@
 
       <button type="button" class="menu-item" data-page="home">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>
-        <span>Home</span>
+        <span>Dashboard</span>
       </button>
 
       <button type="button" class="menu-item" data-page="chats">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"></path></svg>
-        <span>Chat Page</span>
+        <span>Live Chats</span>
       </button>
 
       <button type="button" class="menu-item" data-page="settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.33.43.57.79.66H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
-        <span>Settings Page</span>
+        <span>Settings</span>
       </button>
+
+      <a class="menu-item menu-link" href="../index.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path></svg>
+        <span>Open User Website</span>
+      </a>
     </nav>
   </div>
 
   <main class="container" id="listView">
-    <div class="stats">
+    <section class="page-intro" aria-labelledby="dashboardTitle">
+      <p class="eyebrow">KIXO 9 Support</p>
+      <h1 id="dashboardTitle">Admin Dashboard</h1>
+      <p>Review complaints received from the Deposit, Withdrawal and Account pages.</p>
+    </section>
+
+    <div class="stats" aria-label="Complaint summary">
       <div class="stat-card">
         <span class="stat-label">Total Complaints</span>
         <span class="stat-num" id="totalCount">0</span>
@@ -59,11 +69,45 @@
         <span class="stat-label">Today Complaints</span>
         <span class="stat-num" id="todayCount">0</span>
       </div>
+      <div class="stat-card stat-pending">
+        <span class="stat-label">Pending</span>
+        <span class="stat-num" id="pendingCount">0</span>
+      </div>
+      <div class="stat-card stat-successful">
+        <span class="stat-label">Successful</span>
+        <span class="stat-num" id="successfulCount">0</span>
+      </div>
     </div>
 
     <div class="card">
       <div class="list-head">
-        <h2>All Complaints</h2>
+        <div>
+          <h2>All Complaints</h2>
+          <p class="list-sub" id="resultSummary">Loading complaints...</p>
+        </div>
+      </div>
+
+      <div class="complaint-tools">
+        <label class="search-box" for="complaintSearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          <input type="search" id="complaintSearch" placeholder="Search name, mobile or email" autocomplete="off" />
+        </label>
+
+        <label class="filter-field" for="statusFilter">
+          <span>Status</span>
+          <select id="statusFilter">
+            <option value="all">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Successful">Successful</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="problem-filters" aria-label="Filter complaints by problem">
+        <button type="button" class="filter-chip active" data-problem-filter="all">All Problems <span id="countAllProblems">0</span></button>
+        <button type="button" class="filter-chip" data-problem-filter="deposit">Deposit <span id="countDeposit">0</span></button>
+        <button type="button" class="filter-chip" data-problem-filter="withdrawal">Withdrawal <span id="countWithdrawal">0</span></button>
+        <button type="button" class="filter-chip" data-problem-filter="account">Account <span id="countAccount">0</span></button>
       </div>
 
       <div id="errorBox"></div>
@@ -84,15 +128,16 @@
         <h2>Settings</h2>
       </div>
 
-      <div id="settingsError"></div>
+      <div class="inline-error" id="settingsError" role="alert"></div>
 
       <form id="settingsForm" novalidate>
-        <p class="field-group">General</p>
+        <p class="field-group">User Panel Live Chat</p>
 
         <label class="field" for="setChatUrl">
-          <span>Online Chat URL</span>
+          <span>Live Chat URL</span>
           <input type="url" id="setChatUrl" placeholder="https://t.me/your_username" autocomplete="off" />
           <small>Home page ke Live Chat card ke Get Help button par click karne par user isi URL par redirect hoga. Khali chhodoge to user ko "Live chat is not available" message dikhega.</small>
+          <small class="setting-status" id="chatUrlStatus">Live Chat link is not configured.</small>
         </label>
 
         <p class="field-group">Complaint Telegram Alerts</p>
@@ -109,7 +154,7 @@
           <small>Group ka chat id (negative number) ya aapka personal user id.</small>
         </label>
 
-        <p class="field-group">Chat Telegram Alerts</p>
+        <p class="field-group">Live Chat Telegram Alerts</p>
 
         <label class="field" for="setChatToken">
           <span>Chat Bot Token</span>
@@ -123,10 +168,16 @@
           <small>Chat alerts wale bot ka group id ya personal id. Khali chhodoge to chat alert band ho jayega.</small>
         </label>
 
-        <button type="submit" class="btn btn-blue" id="saveSettingsBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          Save Settings
-        </button>
+        <div class="settings-actions">
+          <button type="submit" class="btn btn-blue" id="saveSettingsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Save Settings
+          </button>
+          <button type="button" class="btn btn-secondary" id="testChatUrlBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path></svg>
+            Test Live Chat Link
+          </button>
+        </div>
       </form>
     </div>
 
@@ -136,10 +187,13 @@
   <main class="container" id="chatsView" style="display: none;">
     <div class="card">
       <div class="list-head">
-        <h2>Chats</h2>
+        <div>
+          <h2>Live Chats</h2>
+          <p class="list-sub" id="chatsSummary">Loading conversations...</p>
+        </div>
       </div>
 
-      <div id="chatsError"></div>
+      <div class="inline-error" id="chatsError" role="alert"></div>
       <div id="chatsList"><p class="loading">Loading chats...</p></div>
     </div>
 
@@ -158,7 +212,7 @@
       </div>
     </div>
 
-    <button type="button" class="back-btn" id="chatDetailBackBtn">&#8592; Chats</button>
+    <button type="button" class="back-btn" id="chatDetailBackBtn">&#8592; Live Chats</button>
   </main>
 
   <main class="container" id="chatRoomView" style="display: none;">

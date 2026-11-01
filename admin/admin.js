@@ -13,8 +13,18 @@ const settingsError = document.getElementById("settingsError");
 const setChatUrl = document.getElementById("setChatUrl");
 const setToken = document.getElementById("setToken");
 const setChatId = document.getElementById("setChatId");
+const setChatToken = document.getElementById("setChatToken");
+const setChatChatId = document.getElementById("setChatChatId");
+const complaintSearch = document.getElementById("complaintSearch");
+const statusFilter = document.getElementById("statusFilter");
+const resultSummary = document.getElementById("resultSummary");
+const chatUrlStatus = document.getElementById("chatUrlStatus");
 
 let docs = [];
+let complaintsLoaded = false;
+let chatsLoaded = false;
+let problemFilter = "all";
+let savedChatUrl = "";
 let currentId = null;
 let currentChatId = null;
 let roomUnsub = null;
@@ -83,14 +93,74 @@ function isToday(item) {
   );
 }
 
+function problemType(problem) {
+  if (/withdraw/i.test(problem || "")) return "withdrawal";
+  if (/account/i.test(problem || "")) return "account";
+  if (/deposit/i.test(problem || "")) return "deposit";
+  return "other";
+}
+
+function problemLabel(problem) {
+  const labels = {
+    deposit: "Deposit Problem",
+    withdrawal: "Withdrawal Problem",
+    account: "Account Problem",
+  };
+  return labels[problemType(problem)] || problem || "Other Problem";
+}
+
 function problemTag(problem) {
-  if (/withdraw/i.test(problem || "")) {
-    return '<span class="tag withdrawal">Withdrawal</span>';
-  }
-  if (/account/i.test(problem || "")) {
-    return '<span class="tag account">Account</span>';
-  }
-  return '<span class="tag deposit">Deposit</span>';
+  return `<span class="tag ${problemType(problem)}">${esc(problemLabel(problem))}</span>`;
+}
+
+function complaintStatus(item) {
+  return item && item.status === "Successful" ? "Successful" : "Pending";
+}
+
+function statusBadge(item, extraClass) {
+  const status = complaintStatus(item);
+  const statusClass = status === "Successful" ? "successful" : "pending";
+  return `<span class="status-badge ${statusClass}${extraClass ? " " + extraClass : ""}">${status}</span>`;
+}
+
+function formatAmount(amount) {
+  if (amount === null || amount === undefined || String(amount).trim() === "") return "";
+  const numeric = Number(amount);
+  if (Number.isFinite(numeric)) return "&#8377;" + numeric.toLocaleString("en-IN");
+  return "&#8377;" + esc(amount);
+}
+
+function filteredDocs() {
+  const query = complaintSearch ? complaintSearch.value.trim().toLowerCase() : "";
+  const selectedStatus = statusFilter ? statusFilter.value : "all";
+
+  return docs.filter((item) => {
+    if (problemFilter !== "all" && problemType(item.problem) !== problemFilter) return false;
+    if (selectedStatus !== "all" && complaintStatus(item) !== selectedStatus) return false;
+    if (!query) return true;
+
+    const searchable = [
+      item.username,
+      item.mobile,
+      item.email,
+      item.problem,
+      item.amount,
+      complaintStatus(item),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(query);
+  });
+}
+
+function clearComplaintFilters() {
+  problemFilter = "all";
+  if (complaintSearch) complaintSearch.value = "";
+  if (statusFilter) statusFilter.value = "all";
+  document.querySelectorAll("[data-problem-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.problemFilter === "all");
+  });
+  renderList();
 }
 
 function showError(message) {
@@ -98,29 +168,83 @@ function showError(message) {
 }
 
 function renderList() {
+  const counts = {
+    all: docs.length,
+    deposit: 0,
+    withdrawal: 0,
+    account: 0,
+    pending: 0,
+    successful: 0,
+  };
+
+  docs.forEach((item) => {
+    const type = problemType(item.problem);
+    if (counts[type] !== undefined) counts[type] += 1;
+    if (complaintStatus(item) === "Successful") counts.successful += 1;
+    else counts.pending += 1;
+  });
+
   document.getElementById("totalCount").textContent = docs.length;
   document.getElementById("todayCount").textContent = docs.filter(isToday).length;
+  document.getElementById("pendingCount").textContent = counts.pending;
+  document.getElementById("successfulCount").textContent = counts.successful;
+  document.getElementById("countAllProblems").textContent = counts.all;
+  document.getElementById("countDeposit").textContent = counts.deposit;
+  document.getElementById("countWithdrawal").textContent = counts.withdrawal;
+  document.getElementById("countAccount").textContent = counts.account;
+
+  if (!complaintsLoaded) {
+    resultSummary.textContent = "Loading complaints...";
+    complaintList.innerHTML = '<p class="loading">Loading complaints...</p>';
+    return;
+  }
 
   if (!docs.length) {
+    resultSummary.textContent = "No complaints received yet";
     complaintList.innerHTML = '<p class="empty">No complaints yet.</p>';
     return;
   }
 
-  complaintList.innerHTML = docs
+  const visibleDocs = filteredDocs();
+  resultSummary.textContent =
+    visibleDocs.length === docs.length
+      ? `Showing all ${docs.length} complaint${docs.length === 1 ? "" : "s"}`
+      : `Showing ${visibleDocs.length} of ${docs.length} complaints`;
+
+  if (!visibleDocs.length) {
+    complaintList.innerHTML = `
+      <div class="empty-state">
+        <p>No complaints match your search or filters.</p>
+        <button type="button" class="btn btn-secondary" id="clearFiltersBtn">Clear Filters</button>
+      </div>
+    `;
+    return;
+  }
+
+  complaintList.innerHTML = visibleDocs
     .map((item) => {
       const name = esc(item.username || "Unknown");
+      const contact = [item.mobile, item.email].filter(Boolean).map(esc).join(" · ");
+      const amount = formatAmount(item.amount);
+      const meta = [contact, amount].filter(Boolean).join(" · ");
+
       return `
-        <button type="button" class="complaint-row" data-id="${esc(item.id)}">
+        <button type="button" class="complaint-row" data-id="${esc(item.id)}" aria-label="Open complaint from ${name}">
           <span class="avatar">
             <img src="user-icons/${encodeURIComponent(item.username || "user")}.png" alt="" onerror="avatarFallback(this)" />
           </span>
           <span class="row-main">
             <span class="row-name">${name}</span>
-            ${problemTag(item.problem)}
+            ${meta ? `<span class="row-meta">${meta}</span>` : ""}
+            <span class="row-badges">
+              ${problemTag(item.problem)}
+              ${statusBadge(item, "row-status")}
+            </span>
           </span>
           <span class="row-right">
             <span class="row-date">${fmtDate(item)}</span>
             <span class="row-time">${fmtTime(item)}</span>
+            <span class="row-arrow" aria-hidden="true">›</span>
           </span>
         </button>
       `;
@@ -135,14 +259,19 @@ function renderDetail() {
     return;
   }
 
-  const successful = item.status === "Successful";
-  const statusClass = successful ? "successful" : "pending";
-  const statusText = successful ? "Successful" : "Pending";
+  const statusText = complaintStatus(item);
+  const successful = statusText === "Successful";
+  const amountText = formatAmount(item.amount) || "Not provided";
+  const screenshotText = item.image
+    ? "Uploaded"
+    : problemType(item.problem) === "account"
+      ? "Not uploaded (optional)"
+      : "Not uploaded";
 
   const viewBtn = item.image
     ? `<button type="button" class="btn btn-blue" id="viewImageBtn">
          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-         View Image
+         View Screenshot
        </button>`
     : "";
 
@@ -150,17 +279,20 @@ function renderDetail() {
     <div class="detail-top">
       <div>
         <div class="detail-name">${esc(item.username || "Unknown")}</div>
-        <div class="detail-time">${fmtDate(item)} ${fmtTime(item)}</div>
+        <div class="detail-time">Submitted ${fmtDate(item)}${fmtTime(item) ? " · " + fmtTime(item) : ""}</div>
+        <div class="detail-tags">${problemTag(item.problem)}</div>
       </div>
-      <span class="status-badge ${statusClass}">${statusText}</span>
+      ${statusBadge(item)}
     </div>
 
     <div class="detail-grid">
-      <div class="detail-row"><span class="lbl">Mobile Number</span><span class="val">${esc(item.mobile)}</span></div>
-      <div class="detail-row"><span class="lbl">Email ID</span><span class="val">${esc(item.email)}</span></div>
+      <div class="detail-row"><span class="lbl">User Name</span><span class="val">${esc(item.username || "Unknown")}</span></div>
+      <div class="detail-row"><span class="lbl">Mobile Number</span><span class="val">${esc(item.mobile || "-")}</span></div>
       <div class="detail-row"><span class="lbl">Game Password</span><span class="val secret">${esc(item.password) || "-"}</span></div>
-      <div class="detail-row"><span class="lbl">Problem</span><span class="val">${esc(item.problem)}</span></div>
-      <div class="detail-row"><span class="lbl">Amount</span><span class="val">${item.amount ? "&#8377;" + esc(item.amount) : "-"}</span></div>
+      <div class="detail-row"><span class="lbl">Email ID</span><span class="val">${esc(item.email || "-")}</span></div>
+      <div class="detail-row"><span class="lbl">Problem</span><span class="val">${esc(problemLabel(item.problem))}</span></div>
+      <div class="detail-row"><span class="lbl">Amount</span><span class="val">${amountText}</span></div>
+      <div class="detail-row"><span class="lbl">Screenshot</span><span class="val${item.image ? "" : " muted-value"}">${screenshotText}</span></div>
       <div class="detail-row"><span class="lbl">Status</span><span class="val">${statusText}</span></div>
     </div>
 
@@ -205,6 +337,7 @@ function renderDetail() {
       ok = false;
     }
 
+    if (!ok) select.value = statusText;
     select.disabled = false;
 
     if (ok) {
@@ -367,6 +500,43 @@ function notifyChatTelegram(payload) {
     .catch((err) => console.warn("Chat Telegram failed:", err));
 }
 
+function isSafeLiveChatUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return false;
+  if (/^https?:\/\//i.test(value)) return true;
+  return !value.includes("://") && !/^(javascript|data|vbscript):/i.test(value);
+}
+
+function resolveLiveChatUrl(url) {
+  const value = String(url || "").trim();
+  if (!isSafeLiveChatUrl(value)) return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("../")) return value;
+  return "../" + value;
+}
+
+function updateChatUrlStatus(source) {
+  if (!chatUrlStatus || !setChatUrl) return;
+  const current = setChatUrl.value.trim();
+
+  chatUrlStatus.classList.remove("configured", "not-configured", "unsaved");
+
+  if (source !== "saved" && current !== savedChatUrl) {
+    chatUrlStatus.textContent = current
+      ? "Live Chat link changed. Save settings to update the user panel."
+      : "Live Chat link will be removed after saving.";
+    chatUrlStatus.classList.add("unsaved");
+    return;
+  }
+
+  if (current && isSafeLiveChatUrl(current)) {
+    chatUrlStatus.textContent = "Live Chat link is configured for the user Home Page.";
+    chatUrlStatus.classList.add("configured");
+  } else {
+    chatUrlStatus.textContent = "Live Chat link is not configured.";
+    chatUrlStatus.classList.add("not-configured");
+  }
+}
+
 function fillSettings(data) {
   chatTgCfg = {
     token: String(data.chatTgToken || "").trim(),
@@ -385,6 +555,9 @@ function fillSettings(data) {
     if (document.activeElement === input) return;
     input.value = value == null ? "" : String(value);
   });
+
+  savedChatUrl = String(data.chatUrl || "").trim();
+  updateChatUrlStatus(document.activeElement === setChatUrl ? "editing" : "saved");
 }
 
 document.getElementById("settingsBackBtn").addEventListener("click", openList);
@@ -455,9 +628,24 @@ function isUserOnline(id) {
 
 function renderChats() {
   const box = document.getElementById("chatsList");
+  const summary = document.getElementById("chatsSummary");
+  const onlineCount = chatThreads.filter((t) => isUserOnline(t.id)).length;
+
+  if (summary) {
+    summary.textContent = !chatsLoaded
+      ? "Loading conversations..."
+      : chatThreads.length
+        ? `${chatThreads.length} conversation${chatThreads.length === 1 ? "" : "s"} · ${onlineCount} online`
+        : "No conversations yet";
+  }
+
+  if (!chatsLoaded) {
+    box.innerHTML = '<p class="loading">Loading chats...</p>';
+    return;
+  }
 
   if (!chatThreads.length) {
-    box.innerHTML = '<p class="loading">No chats yet.</p>';
+    box.innerHTML = '<p class="empty">No chats yet.</p>';
     statusSig = "";
     return;
   }
@@ -537,6 +725,7 @@ function startChatsWatch(tries) {
   if (window.__chatAdmin) {
     if (chatsUnsub) return;
     chatsUnsub = window.__chatAdmin.watchChats((items) => {
+      chatsLoaded = true;
       chatThreads = items;
       document.getElementById("chatsError").textContent = "";
       refreshChatViews();
@@ -700,16 +889,18 @@ function currentPageKey() {
 }
 
 function openMenu() {
-  document.querySelectorAll(".menu-item").forEach((btn) => {
+  document.querySelectorAll(".menu-item[data-page]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.page === currentPageKey());
   });
   menuOverlay.hidden = false;
   menuBtn.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
 }
 
 function closeMenu() {
   menuOverlay.hidden = true;
   menuBtn.setAttribute("aria-expanded", "false");
+  if (!imgOverlay.classList.contains("show")) document.body.style.overflow = "";
 }
 
 const menuRoutes = {
@@ -729,11 +920,24 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeMenu();
 });
 
-document.querySelectorAll(".menu-item").forEach((btn) => {
+document.querySelectorAll(".menu-item[data-page]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const route = menuRoutes[btn.dataset.page];
     if (route) route();
     closeMenu();
+  });
+});
+
+if (complaintSearch) complaintSearch.addEventListener("input", renderList);
+if (statusFilter) statusFilter.addEventListener("change", renderList);
+
+document.querySelectorAll("[data-problem-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    problemFilter = button.dataset.problemFilter || "all";
+    document.querySelectorAll("[data-problem-filter]").forEach((chip) => {
+      chip.classList.toggle("active", chip === button);
+    });
+    renderList();
   });
 });
 
@@ -835,6 +1039,17 @@ document.getElementById("roomFileInput").addEventListener("change", (e) => {
   reader.readAsDataURL(file);
 });
 
+setChatUrl.addEventListener("input", () => updateChatUrlStatus("editing"));
+
+document.getElementById("testChatUrlBtn").addEventListener("click", () => {
+  const target = resolveLiveChatUrl(setChatUrl.value);
+  if (!target) {
+    showToast("Enter a valid Live Chat URL first.", "err");
+    return;
+  }
+  window.open(target, "_blank", "noopener");
+});
+
 document.getElementById("settingsForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -846,15 +1061,10 @@ document.getElementById("settingsForm").addEventListener("submit", async (e) => 
     chatTgChatId: setChatChatId.value.trim(),
   };
 
-  if (payload.chatUrl) {
-    const isHttp = /^https?:\/\//i.test(payload.chatUrl);
-    const isPath =
-      !payload.chatUrl.includes("://") && !/^(javascript|data|vbscript):/i.test(payload.chatUrl);
-    if (!isHttp && !isPath) {
-      settingsError.textContent =
-        "Enter a full URL (https://...) or a page path like ONLINE-CHAT/index.html";
-      return;
-    }
+  if (payload.chatUrl && !isSafeLiveChatUrl(payload.chatUrl)) {
+    settingsError.textContent =
+      "Enter a full URL (https://...) or a page path like ONLINE-CHAT/index.html";
+    return;
   }
 
   settingsError.textContent = "";
@@ -867,6 +1077,8 @@ document.getElementById("settingsForm").addEventListener("submit", async (e) => 
       throw new Error("connection not ready");
     }
     await Promise.resolve(window.__saveSettings(payload));
+    savedChatUrl = payload.chatUrl;
+    updateChatUrlStatus("saved");
     settingsError.textContent = "";
     showToast("Settings saved", "ok");
   } catch (err) {
@@ -902,11 +1114,16 @@ document.addEventListener("keydown", (e) => {
 });
 
 complaintList.addEventListener("click", (e) => {
+  if (e.target.closest("#clearFiltersBtn")) {
+    clearComplaintFilters();
+    return;
+  }
   const row = e.target.closest("[data-id]");
   if (row) openDetail(row.dataset.id);
 });
 
 window.__adminRender = function (items) {
+  complaintsLoaded = true;
   docs = items;
   if (currentId) {
     renderDetail();
