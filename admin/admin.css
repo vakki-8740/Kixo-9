@@ -94,6 +94,49 @@ select:focus-visible {
   justify-content: flex-end;
 }
 
+.js-admin-install[hidden] {
+  display: none !important;
+}
+
+.install-btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  flex: none;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.24);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.install-btn:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+}
+
+.install-btn:active {
+  transform: scale(0.97);
+}
+
+.install-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
 .menu-btn {
   width: 42px;
   height: 42px;
@@ -1628,6 +1671,17 @@ select:focus-visible {
 
   .header-actions {
     margin-left: auto;
+  }
+
+  .install-btn {
+    width: 38px;
+    min-height: 38px;
+    padding: 8px;
+    border-radius: 50%;
+  }
+
+  .install-btn span {
+    display: none;
   }
 
   .menu-btn {

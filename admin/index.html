@@ -3,7 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/webp" href="FAVICON/zpekLogo.webp" />
+  <link rel="icon" type="image/png" sizes="512x512" href="FAVICON/admin-favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="KIXO Admin" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>KIXO 9 GAME - Admin Panel</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,6 +24,10 @@
       <img src="logo/zpekLogo.webp" alt="Logo" class="logo" />
       <span class="brand">COMPLAIN PAGE<small>Admin Panel</small></span>
       <div class="header-actions">
+        <button type="button" class="install-btn js-admin-install" id="installAdminHeaderBtn" title="Install Admin App" aria-label="Install Admin App" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path><path d="M12 15V3"></path></svg>
+          <span>Install</span>
+        </button>
         <button type="button" class="menu-btn" id="menuBtn" title="Menu" aria-label="Open menu" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
@@ -55,6 +66,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path></svg>
         <span>Open User Website</span>
       </a>
+
+      <button type="button" class="menu-item js-admin-install" id="installAdminMenuBtn" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path><path d="M12 15V3"></path></svg>
+        <span>Install Admin App</span>
+      </button>
     </nav>
   </div>
 
@@ -320,6 +336,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="admin.js"></script>
+  <script src="admin-pwa.js"></script>
 
   <script type="module" src="admin-firebase.js"></script>
 </body>
