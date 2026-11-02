@@ -153,9 +153,10 @@
     /* ---------- Upload ---------- */
     .upload-box {
       position: relative;
+      min-height: 66px;
       border: 1px dashed #cbd5e1;
-      border-radius: 12px;
-      padding: 24px 16px;
+      border-radius: 10px;
+      padding: 11px 14px;
       background: #f9fafb;
       cursor: pointer;
       transition: border-color 0.2s ease, background 0.2s ease;
@@ -180,18 +181,16 @@
     }
 
     .upload-content {
+      min-height: 42px;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 7px;
-      min-height: 76px;
-      text-align: center;
+      gap: 10px;
+      text-align: left;
     }
 
     .upload-icon {
-      width: 44px;
-      height: 44px;
+      width: 36px;
+      height: 36px;
       border: 1px solid #dbeafe;
       border-radius: 50%;
       background: #eff6ff;
@@ -199,11 +198,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex: none;
     }
 
     .upload-icon svg {
-      width: 24px;
-      height: 24px;
+      width: 21px;
+      height: 21px;
       fill: none;
       stroke: currentColor;
       stroke-width: 2;
@@ -217,18 +217,10 @@
       color: #16a34a;
     }
 
-    .upload-copy {
-      max-width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-    }
-
     .upload-text {
-      display: block;
-      max-width: 100%;
-      font-size: 15px;
+      flex: 1;
+      min-width: 0;
+      font-size: 14px;
       font-weight: 600;
       color: #374151;
       white-space: nowrap;
@@ -236,30 +228,19 @@
       text-overflow: ellipsis;
     }
 
-    .upload-subtext {
-      display: block;
-      font-size: 12px;
-      line-height: 1.45;
-      color: #9ca3af;
-    }
-
     .upload-box.has-file .upload-text {
       color: #15803d;
     }
 
-    .upload-box.has-file .upload-subtext {
-      color: #16a34a;
-    }
-
     .upload-action {
-      margin-top: 3px;
-      padding: 7px 12px;
+      padding: 6px 10px;
       border: 1px solid #bfdbfe;
-      border-radius: 8px;
+      border-radius: 7px;
       background: #ffffff;
       color: #2563eb;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
+      flex: none;
     }
 
     .upload-box.has-file .upload-action {
@@ -281,11 +262,11 @@
       left: 50%;
       bottom: 24px;
       z-index: 350;
-      width: min(330px, calc(100vw - 32px));
+      width: min(320px, calc(100vw - 32px));
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 11px 14px;
+      gap: 9px;
+      padding: 10px 12px;
       border: 1px solid #bbf7d0;
       border-radius: 10px;
       background: #ffffff;
@@ -293,7 +274,7 @@
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
       opacity: 0;
       pointer-events: none;
-      transform: translateX(-50%) translateY(12px);
+      transform: translateX(-50%) translateY(10px);
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
@@ -303,15 +284,15 @@
     }
 
     .upload-popup-icon {
-      width: 30px;
-      height: 30px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background: #22c55e;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       flex: none;
     }
@@ -320,16 +301,16 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
 
     .upload-popup-copy strong {
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.25;
     }
 
     .upload-popup-copy small {
-      font-size: 12px;
+      font-size: 11px;
       color: #6b7280;
       white-space: nowrap;
       overflow: hidden;
@@ -338,7 +319,33 @@
 
     @media (max-width: 560px) {
       .upload-box {
-        padding: 20px 12px;
+        min-height: 60px;
+        padding: 9px 11px;
+        border-radius: 9px;
+      }
+
+      .upload-content {
+        min-height: 40px;
+        gap: 8px;
+      }
+
+      .upload-icon {
+        width: 34px;
+        height: 34px;
+      }
+
+      .upload-icon svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .upload-text {
+        font-size: 13.5px;
+      }
+
+      .upload-action {
+        padding: 6px 9px;
+        font-size: 11px;
       }
 
       .upload-popup {

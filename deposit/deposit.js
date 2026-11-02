@@ -1,16 +1,14 @@
 // Is page ka problem fix hai - sirf isi problem ki complaint banegi.
 const COMPLAINT_PROBLEM = "Deposit Problem";
-const UPLOAD_HINT = "Click to upload payment screenshot";
-const UPLOAD_MISSING = "Please upload payment image";
+const UPLOAD_HINT = "Select screenshot";
+const UPLOAD_MISSING = "Screenshot required";
 const IMAGE_REQUIRED = true;
-const UPLOAD_SUBTEXT = "Tap to choose a screenshot from your device";
 
 const form = document.getElementById("complaintForm");
 const amountInput = document.getElementById("amount");
 const fileInput = document.getElementById("paymentImage");
 const uploadText = document.getElementById("uploadText");
 const uploadBox = document.getElementById("uploadBox");
-const uploadSubtext = document.getElementById("uploadSubtext");
 const uploadAction = document.getElementById("uploadAction");
 const uploadPopup = document.getElementById("uploadPopup");
 const uploadPopupText = document.getElementById("uploadPopupText");
@@ -150,13 +148,6 @@ function getComplaints() {
   }
 }
 
-function formatFileSize(bytes) {
-  if (!bytes && bytes !== 0) return "";
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
-
 function hideUploadPopup() {
   uploadPopup.classList.remove("show");
   uploadPopup.setAttribute("aria-hidden", "true");
@@ -175,8 +166,7 @@ function resetUploadUI() {
   uploadText.textContent = UPLOAD_HINT;
   uploadText.style.color = "";
   uploadText.removeAttribute("title");
-  uploadSubtext.textContent = UPLOAD_SUBTEXT;
-  uploadAction.textContent = "Choose Image";
+  uploadAction.textContent = "Choose";
   hideUploadPopup();
 }
 
@@ -186,9 +176,7 @@ function showSelectedUpload(file, showPopup) {
   uploadText.textContent = file.name;
   uploadText.style.color = "";
   uploadText.title = file.name;
-  const size = formatFileSize(file.size);
-  uploadSubtext.textContent = "Ready to send" + (size ? " · " + size : "") + " · Tap to change";
-  uploadAction.textContent = "Change Image";
+  uploadAction.textContent = "Change";
   if (showPopup) showUploadPopup(file);
 }
 
@@ -200,9 +188,8 @@ fileInput.addEventListener("change", () => {
     fileInput.value = "";
     resetUploadUI();
     uploadBox.classList.add("upload-error");
-    uploadText.textContent = "Please choose an image file";
+    uploadText.textContent = "Select image only";
     uploadText.style.color = "#dc2626";
-    uploadSubtext.textContent = "Only image screenshots are allowed";
     showToast("Please choose an image file.");
     return;
   }
@@ -258,8 +245,7 @@ function validate() {
     uploadBox.classList.add("upload-error");
     uploadText.textContent = UPLOAD_MISSING;
     uploadText.style.color = "#dc2626";
-    uploadSubtext.textContent = "Screenshot is required";
-    uploadAction.textContent = "Choose Image";
+    uploadAction.textContent = "Choose";
     valid = false;
     problems.push(UPLOAD_MISSING);
   } else if (fileInput.files[0]) {
