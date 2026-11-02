@@ -57,6 +57,29 @@ try {
     () => {}
   );
 
+  window.__visitorAdmin = {
+    watchVisitors(onItems) {
+      return onSnapshot(
+        collection(db, "visitors"),
+        (snap) => {
+          const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          items.sort(
+            (a, b) =>
+              (b.lastSeenAt || b.firstSeenAt || 0) - (a.lastSeenAt || a.firstSeenAt || 0)
+          );
+          window.__visitorsError("");
+          onItems(items);
+        },
+        (err) => {
+          window.__visitorsError(
+            "Could not load visitors: " + (err && err.message ? err.message : err)
+          );
+          onItems([]);
+        }
+      );
+    },
+  };
+
   const presenceRef = doc(db, "presence", "admin");
   const beatPresence = () =>
     setDoc(presenceRef, { online: true, lastSeen: Date.now() }, { merge: true }).catch(() => {});
@@ -138,6 +161,7 @@ try {
   };
 
   startChatsWatch();
+  startVisitorsWatch();
 } catch (err) {
   window.__adminRender([]);
   window.__adminError("Firebase init failed: " + (err && err.message ? err.message : err));

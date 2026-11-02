@@ -29,6 +29,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Website visitor activity shown on the admin Visitors page.
+    match /visitors/{visitorId} {
+      allow read, write: if true;
+    }
+
     // Everything else stays locked.
     match /{document=**} {
       allow read, write: if false;

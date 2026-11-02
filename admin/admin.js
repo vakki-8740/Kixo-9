@@ -4,8 +4,12 @@ const AVATAR_DEFAULT =
 const listView = document.getElementById("listView");
 const detailView = document.getElementById("detailView");
 const settingsView = document.getElementById("settingsView");
+const visitorsView = document.getElementById("visitorsView");
+const visitorDetailView = document.getElementById("visitorDetailView");
 const complaintList = document.getElementById("complaintList");
 const detailContent = document.getElementById("detailContent");
+const visitorsList = document.getElementById("visitorsList");
+const visitorDetailContent = document.getElementById("visitorDetailContent");
 const errorBox = document.getElementById("errorBox");
 const imgOverlay = document.getElementById("imgOverlay");
 const imgView = document.getElementById("imgView");
@@ -19,10 +23,17 @@ const complaintSearch = document.getElementById("complaintSearch");
 const statusFilter = document.getElementById("statusFilter");
 const resultSummary = document.getElementById("resultSummary");
 const chatUrlStatus = document.getElementById("chatUrlStatus");
+const visitorSearch = document.getElementById("visitorSearch");
+const visitorResultSummary = document.getElementById("visitorResultSummary");
 
 let docs = [];
+let visitorDocs = [];
 let complaintsLoaded = false;
 let chatsLoaded = false;
+let visitorsLoaded = false;
+let visitorsUnsub = null;
+let currentVisitorKey = null;
+let visitorTypeFilter = "all";
 let problemFilter = "all";
 let savedChatUrl = "";
 let currentId = null;
@@ -82,6 +93,17 @@ function fmtTime(item) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtTimestamp(value) {
+  const time = Number(value || 0);
+  if (!time) return "-";
+  const d = new Date(time);
+  return (
+    d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) +
+    " · " +
+    d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
 function isToday(item) {
   const d = new Date(ts(item));
   const now = new Date();
@@ -128,6 +150,13 @@ function formatAmount(amount) {
   const numeric = Number(amount);
   if (Number.isFinite(numeric)) return "&#8377;" + numeric.toLocaleString("en-IN");
   return "&#8377;" + esc(amount);
+}
+
+function plainAmount(amount) {
+  if (amount === null || amount === undefined || String(amount).trim() === "") return "";
+  const numeric = Number(amount);
+  if (Number.isFinite(numeric)) return "\u20B9" + numeric.toLocaleString("en-IN");
+  return "\u20B9" + String(amount);
 }
 
 function filteredDocs() {
@@ -436,10 +465,391 @@ function renderDetail() {
   });
 }
 
+/* ---------- Visitors ---------- */
+function normalizedVisitorMobile(item) {
+  return String((item && item.mobile) || "").replace(/\D/g, "").slice(-10);
+}
+
+function normalizedVisitorEmail(item) {
+  return String((item && item.email) || "").trim().toLowerCase();
+}
+
+function complaintVisitorKey(item) {
+  if (item.visitorId) return "visitor:" + String(item.visitorId);
+  const mobile = normalizedVisitorMobile(item);
+  const email = normalizedVisitorEmail(item);
+  const name = String(item.username || "").trim().toLowerCase();
+  return "complaint:" + (mobile || email || name || item.id || "unknown");
+}
+
+function isVisitorOnline(record) {
+  return !!(
+    record &&
+    record.visitor &&
+    record.lastSeenAt &&
+    Date.now() - record.lastSeenAt < 120000
+  );
+}
+
+function buildVisitorRecords() {
+  const recordsByKey = new Map();
+
+  visitorDocs.forEach((visitor) => {
+    const visitorId = String(visitor.visitorId || visitor.id || "");
+    if (!visitorId) return;
+    const key = "visitor:" + visitorId;
+    recordsByKey.set(key, {
+      key,
+      visitorId,
+      visitor,
+      complaints: [],
+    });
+  });
+
+  const addComplaint = (item, key) => {
+    if (!recordsByKey.has(key)) {
+      recordsByKey.set(key, {
+        key,
+        visitorId: item.visitorId ? String(item.visitorId) : "",
+        visitor: null,
+        complaints: [],
+      });
+    }
+    recordsByKey.get(key).complaints.push(item);
+  };
+
+  docs
+    .filter((item) => item.visitorId)
+    .forEach((item) => addComplaint(item, complaintVisitorKey(item)));
+
+  const identityKeys = new Map();
+  recordsByKey.forEach((record) => {
+    record.complaints.forEach((item) => {
+      const mobile = normalizedVisitorMobile(item);
+      const email = normalizedVisitorEmail(item);
+      if (mobile && !identityKeys.has("mobile:" + mobile)) identityKeys.set("mobile:" + mobile, record.key);
+      if (email && !identityKeys.has("email:" + email)) identityKeys.set("email:" + email, record.key);
+    });
+  });
+
+  docs
+    .filter((item) => !item.visitorId)
+    .forEach((item) => {
+      const mobile = normalizedVisitorMobile(item);
+      const email = normalizedVisitorEmail(item);
+      const key =
+        (mobile && identityKeys.get("mobile:" + mobile)) ||
+        (email && identityKeys.get("email:" + email)) ||
+        complaintVisitorKey(item);
+      addComplaint(item, key);
+      if (mobile && !identityKeys.has("mobile:" + mobile)) identityKeys.set("mobile:" + mobile, key);
+      if (email && !identityKeys.has("email:" + email)) identityKeys.set("email:" + email, key);
+    });
+
+  const records = Array.from(recordsByKey.values()).map((record) => {
+    record.complaints.sort((a, b) => ts(b) - ts(a));
+    record.latestComplaint = record.complaints[0] || null;
+    record.earliestComplaint = record.complaints[record.complaints.length - 1] || null;
+    record.complaintCount = record.complaints.length;
+    record.hasComplaint = record.complaintCount > 0;
+
+    const visitor = record.visitor || {};
+    const latest = record.latestComplaint || {};
+    record.displayName = latest.username || visitor.username || "Guest Visitor";
+    record.mobile = latest.mobile || visitor.mobile || "";
+    record.email = latest.email || visitor.email || "";
+
+    const visitorFirstSeen = Number(visitor.firstSeenAt || visitor.lastSeenAt || 0);
+    const visitorLastSeen = Number(visitor.lastSeenAt || visitor.firstSeenAt || 0);
+    record.firstSeenAt = visitorFirstSeen || (record.earliestComplaint ? ts(record.earliestComplaint) : 0);
+    record.lastSeenAt = visitorLastSeen;
+    record.lastActivityAt = Math.max(
+      visitorLastSeen,
+      record.latestComplaint ? ts(record.latestComplaint) : 0
+    );
+    record.online = isVisitorOnline(record);
+    return record;
+  });
+
+  records.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  return records;
+}
+
+function visitorTypeBadge(record) {
+  if (record.hasComplaint) {
+    return `<span class="visitor-type has-complaint">Complaint User · ${record.complaintCount}</span>`;
+  }
+  return '<span class="visitor-type no-complaint">No Complaint</span>';
+}
+
+function visitorOnlineBadge(record) {
+  if (!record.visitor) return "";
+  return `<span class="visitor-online${record.online ? " on" : ""}">${record.online ? "Online" : "Offline"}</span>`;
+}
+
+function filteredVisitorRecords(records) {
+  const query = visitorSearch ? visitorSearch.value.trim().toLowerCase() : "";
+
+  return records.filter((record) => {
+    if (visitorTypeFilter === "complaint" && !record.hasComplaint) return false;
+    if (visitorTypeFilter === "no-complaint" && record.hasComplaint) return false;
+    if (!query) return true;
+
+    const visitor = record.visitor || {};
+    const complaintText = record.complaints
+      .map((item) => [item.problem, complaintStatus(item), item.amount].join(" "))
+      .join(" ");
+    const searchable = [
+      record.displayName,
+      record.mobile,
+      record.email,
+      record.visitorId,
+      visitor.lastPage,
+      visitor.deviceType,
+      visitor.browser,
+      visitor.platform,
+      complaintText,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(query);
+  });
+}
+
+function clearVisitorFilters() {
+  visitorTypeFilter = "all";
+  if (visitorSearch) visitorSearch.value = "";
+  document.querySelectorAll("[data-visitor-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.visitorFilter === "all");
+  });
+  renderVisitors();
+}
+
+function renderVisitors() {
+  const records = buildVisitorRecords();
+  const withComplaint = records.filter((record) => record.hasComplaint).length;
+  const withoutComplaint = records.length - withComplaint;
+  const onlineNow = records.filter((record) => record.online).length;
+
+  document.getElementById("visitorTotalCount").textContent = records.length;
+  document.getElementById("visitorComplaintCount").textContent = withComplaint;
+  document.getElementById("visitorNoComplaintCount").textContent = withoutComplaint;
+  document.getElementById("visitorOnlineCount").textContent = onlineNow;
+  document.getElementById("countAllVisitors").textContent = records.length;
+  document.getElementById("countComplaintVisitors").textContent = withComplaint;
+  document.getElementById("countNoComplaintVisitors").textContent = withoutComplaint;
+
+  if (!complaintsLoaded || !visitorsLoaded) {
+    visitorResultSummary.textContent = "Loading visitors...";
+    visitorsList.innerHTML = '<p class="loading">Loading visitors...</p>';
+    return;
+  }
+
+  if (!records.length) {
+    visitorResultSummary.textContent = "No visitors recorded yet";
+    visitorsList.innerHTML = '<p class="empty">No visitors yet.</p>';
+    return;
+  }
+
+  const visibleRecords = filteredVisitorRecords(records);
+  visitorResultSummary.textContent =
+    visibleRecords.length === records.length
+      ? `Showing all ${records.length} visitor${records.length === 1 ? "" : "s"}`
+      : `Showing ${visibleRecords.length} of ${records.length} visitors`;
+
+  if (!visibleRecords.length) {
+    visitorsList.innerHTML = `
+      <div class="empty-state">
+        <p>No visitors match your search or filter.</p>
+        <button type="button" class="btn btn-secondary" id="clearVisitorFiltersBtn">Clear Filters</button>
+      </div>
+    `;
+    return;
+  }
+
+  visitorsList.innerHTML = visibleRecords
+    .map((record) => {
+      const name = esc(record.displayName || "Guest Visitor");
+      const visitor = record.visitor || {};
+      const contact = [record.mobile, record.email].filter(Boolean).map(esc).join(" · ");
+      const activity = [visitor.lastPage, visitor.deviceType, visitor.browser]
+        .filter(Boolean)
+        .map(esc)
+        .join(" · ");
+      const fallbackMeta = record.visitorId
+        ? "Visitor ID: " + esc(record.visitorId.slice(0, 8)) + "..."
+        : "Complaint user";
+      const meta = [contact || fallbackMeta, activity].filter(Boolean).join(" · ");
+      const activityItem = { createdAt: record.lastActivityAt };
+      const avatarName = record.latestComplaint
+        ? record.latestComplaint.username || "user"
+        : "user";
+
+      return `
+        <button type="button" class="complaint-row" data-visitor-key="${esc(record.key)}" aria-label="Open visitor ${name}">
+          <span class="avatar">
+            <img src="user-icons/${encodeURIComponent(avatarName)}.png" alt="" onerror="avatarFallback(this)" />
+          </span>
+          <span class="row-main">
+            <span class="row-name">${name}</span>
+            ${meta ? `<span class="row-meta">${meta}</span>` : ""}
+            <span class="row-badges">
+              ${visitorTypeBadge(record)}
+              ${visitorOnlineBadge(record)}
+            </span>
+          </span>
+          <span class="row-right">
+            <span class="row-date">${fmtDate(activityItem)}</span>
+            <span class="row-time">${fmtTime(activityItem)}</span>
+            <span class="row-arrow" aria-hidden="true">›</span>
+          </span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function visitorDetailField(label, value) {
+  return `<div class="detail-row"><span class="lbl">${esc(label)}</span><span class="val">${esc(value == null || value === "" ? "-" : value)}</span></div>`;
+}
+
+function renderVisitorDetail() {
+  const record = buildVisitorRecords().find((item) => item.key === currentVisitorKey);
+
+  if (!record) {
+    if (!complaintsLoaded || !visitorsLoaded) {
+      visitorDetailContent.innerHTML = '<p class="loading">Loading visitor...</p>';
+      return;
+    }
+    openVisitors();
+    return;
+  }
+
+  const visitor = record.visitor || {};
+  const latest = record.latestComplaint;
+  const complaintProfile = latest
+    ? `
+      <h3 class="detail-section-title">Complaint Profile</h3>
+      <div class="detail-grid">
+        ${visitorDetailField("User Name", latest.username || "Unknown")}
+        <div class="detail-row"><span class="lbl">Mobile Number</span><span class="copy-value"><span class="val">${esc(latest.mobile || "-")}</span>${copyButton("mobile", "Mobile number", latest.mobile)}</span></div>
+        <div class="detail-row"><span class="lbl">Game Password</span><span class="copy-value"><span class="val secret">${esc(latest.password) || "-"}</span>${copyButton("password", "Game password", latest.password)}</span></div>
+        <div class="detail-row"><span class="lbl">Email ID</span><span class="copy-value"><span class="val">${esc(latest.email || "-")}</span>${copyButton("email", "Email ID", latest.email)}</span></div>
+        ${visitorDetailField("Latest Problem", problemLabel(latest.problem))}
+        ${visitorDetailField("Latest Status", complaintStatus(latest))}
+        ${visitorDetailField("Latest Amount", plainAmount(latest.amount) || "Not provided")}
+        ${visitorDetailField("Total Complaints", record.complaintCount)}
+      </div>
+    `
+    : "";
+
+  const complaintHistory = record.complaints.length
+    ? record.complaints
+        .map((item) => {
+          const amount = formatAmount(item.amount);
+          const meta = [esc(item.mobile || ""), amount].filter(Boolean).join(" · ");
+          return `
+            <button type="button" class="complaint-row visitor-complaint-row" data-complaint-id="${esc(item.id)}">
+              <span class="row-main">
+                <span class="row-name">${esc(problemLabel(item.problem))}</span>
+                ${meta ? `<span class="row-meta">${meta}</span>` : ""}
+                <span class="row-badges">${problemTag(item.problem)}${statusBadge(item, "row-status")}</span>
+              </span>
+              <span class="row-right">
+                <span class="row-date">${fmtDate(item)}</span>
+                <span class="row-time">${fmtTime(item)}</span>
+                <span class="row-arrow" aria-hidden="true">›</span>
+              </span>
+            </button>
+          `;
+        })
+        .join("")
+    : '<div class="visitor-empty-note">This visitor has not sent any complaint yet.</div>';
+
+  visitorDetailContent.innerHTML = `
+    <div class="detail-top">
+      <div>
+        <div class="detail-name">${esc(record.displayName)}</div>
+        <div class="detail-time">Last active ${fmtTimestamp(record.lastActivityAt)}</div>
+        <div class="detail-tags">${visitorOnlineBadge(record)}</div>
+      </div>
+      ${visitorTypeBadge(record)}
+    </div>
+
+    <h3 class="detail-section-title">Visitor Information</h3>
+    <div class="detail-grid">
+      ${visitorDetailField("Visitor ID", record.visitorId || "Not tracked")}
+      ${visitorDetailField("First Seen", fmtTimestamp(record.firstSeenAt))}
+      ${visitorDetailField("Last Seen", visitor.lastSeenAt || visitor.firstSeenAt ? fmtTimestamp(record.lastSeenAt) : "-")}
+      ${visitorDetailField("Last Page", visitor.lastPage)}
+      ${visitorDetailField("Total Visits", visitor.visits == null ? "-" : visitor.visits)}
+      ${visitorDetailField("Page Views", visitor.pageViews == null ? "-" : visitor.pageViews)}
+      ${visitorDetailField("Device", visitor.deviceType)}
+      ${visitorDetailField("Browser", visitor.browser)}
+      ${visitorDetailField("Platform / OS", visitor.platform)}
+      ${visitorDetailField("Language", visitor.language)}
+      ${visitorDetailField("Screen Size", visitor.screenSize)}
+      ${visitorDetailField("Timezone", visitor.timezone)}
+      ${visitorDetailField("Referrer", visitor.referrer)}
+      ${visitorDetailField("Online Status", record.visitor ? (record.online ? "Online" : "Offline") : "Not tracked")}
+    </div>
+
+    ${complaintProfile}
+
+    <h3 class="detail-section-title">Complaint History</h3>
+    <div class="visitor-history">${complaintHistory}</div>
+  `;
+
+  if (latest) {
+    const copyValues = {
+      mobile: latest.mobile == null ? "" : latest.mobile,
+      password: latest.password == null ? "" : latest.password,
+      email: latest.email == null ? "" : latest.email,
+    };
+    const copyLabels = {
+      mobile: "Mobile number",
+      password: "Game password",
+      email: "Email ID",
+    };
+    visitorDetailContent.querySelectorAll("[data-copy-field]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const field = button.dataset.copyField;
+        copyDetailValue(copyValues[field], copyLabels[field] || "Value", button);
+      });
+    });
+  }
+
+  visitorDetailContent.querySelectorAll("[data-complaint-id]").forEach((button) => {
+    button.addEventListener("click", () => openDetail(button.dataset.complaintId));
+  });
+}
+
+function refreshVisitorViews() {
+  if (visitorsView.style.display !== "none") renderVisitors();
+  if (visitorDetailView.style.display !== "none") renderVisitorDetail();
+}
+
+function startVisitorsWatch(tries) {
+  if (window.__visitorAdmin) {
+    if (visitorsUnsub) return;
+    visitorsUnsub = window.__visitorAdmin.watchVisitors((items) => {
+      visitorsLoaded = true;
+      visitorDocs = items;
+      refreshVisitorViews();
+    });
+    return;
+  }
+
+  const n = tries || 0;
+  if (n < 60) setTimeout(() => startVisitorsWatch(n + 1), 500);
+}
+
 function hideAllViews() {
   listView.style.display = "none";
   detailView.style.display = "none";
   settingsView.style.display = "none";
+  visitorsView.style.display = "none";
+  visitorDetailView.style.display = "none";
   chatsView.style.display = "none";
   chatDetailView.style.display = "none";
   chatRoomView.style.display = "none";
@@ -457,6 +867,7 @@ function openList() {
   leaveRoom();
   hideAllViews();
   currentId = null;
+  currentVisitorKey = null;
   listView.style.display = "block";
   renderList();
   window.scrollTo(0, 0);
@@ -466,8 +877,29 @@ function openSettings() {
   leaveRoom();
   hideAllViews();
   currentId = null;
+  currentVisitorKey = null;
   settingsView.style.display = "block";
   settingsError.textContent = "";
+  window.scrollTo(0, 0);
+}
+
+function openVisitors() {
+  leaveRoom();
+  hideAllViews();
+  currentId = null;
+  currentVisitorKey = null;
+  visitorsView.style.display = "block";
+  renderVisitors();
+  window.scrollTo(0, 0);
+}
+
+function openVisitorDetail(key) {
+  leaveRoom();
+  hideAllViews();
+  currentId = null;
+  currentVisitorKey = key;
+  visitorDetailView.style.display = "block";
+  renderVisitorDetail();
   window.scrollTo(0, 0);
 }
 
@@ -965,6 +1397,8 @@ const menuOverlay = document.getElementById("menuOverlay");
 
 function currentPageKey() {
   if (settingsView.style.display !== "none") return "settings";
+  if (visitorsView.style.display !== "none" || visitorDetailView.style.display !== "none")
+    return "visitors";
   if (
     chatsView.style.display !== "none" ||
     chatDetailView.style.display !== "none" ||
@@ -991,6 +1425,7 @@ function closeMenu() {
 
 const menuRoutes = {
   home: openList,
+  visitors: openVisitors,
   chats: openChats,
   settings: openSettings,
 };
@@ -1026,6 +1461,29 @@ document.querySelectorAll("[data-problem-filter]").forEach((button) => {
     renderList();
   });
 });
+
+if (visitorSearch) visitorSearch.addEventListener("input", renderVisitors);
+
+document.querySelectorAll("[data-visitor-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    visitorTypeFilter = button.dataset.visitorFilter || "all";
+    document.querySelectorAll("[data-visitor-filter]").forEach((chip) => {
+      chip.classList.toggle("active", chip === button);
+    });
+    renderVisitors();
+  });
+});
+
+visitorsList.addEventListener("click", (e) => {
+  if (e.target.closest("#clearVisitorFiltersBtn")) {
+    clearVisitorFilters();
+    return;
+  }
+  const row = e.target.closest("[data-visitor-key]");
+  if (row) openVisitorDetail(row.dataset.visitorKey);
+});
+
+document.getElementById("visitorBackBtn").addEventListener("click", openVisitors);
 
 document.getElementById("chatsBackBtn").addEventListener("click", openList);
 document.getElementById("roomCloseBtn").addEventListener("click", openChats);
@@ -1216,6 +1674,7 @@ window.__adminRender = function (items) {
   } else {
     renderList();
   }
+  refreshVisitorViews();
 };
 
 window.__adminError = showError;
@@ -1225,8 +1684,18 @@ window.__chatsError = (message) => {
   if (box) box.textContent = message || "";
 };
 
+window.__visitorsError = (message) => {
+  const box = document.getElementById("visitorsError");
+  if (box) box.textContent = message || "";
+};
+
 startChatsWatch();
+startVisitorsWatch();
 startPresenceWatch();
+
+setInterval(() => {
+  refreshVisitorViews();
+}, 30000);
 
 setInterval(() => {
   if (!chatThreads.length) return;

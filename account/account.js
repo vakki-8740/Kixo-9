@@ -20,6 +20,30 @@ const formError = document.getElementById("formError");
 
 const STORAGE_KEY = "sentComplaints";
 
+const VISITOR_ID_KEY = "KixoVisitorId";
+
+function getVisitorId() {
+  if (window.__KixoVisitorId) return window.__KixoVisitorId;
+
+  try {
+    let id = localStorage.getItem(VISITOR_ID_KEY);
+    if (!id) {
+      id =
+        window.crypto && typeof window.crypto.randomUUID === "function"
+          ? window.crypto.randomUUID()
+          : "visitor-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(VISITOR_ID_KEY, id);
+    }
+    window.__KixoVisitorId = id;
+    return id;
+  } catch {
+    window.__KixoVisitorId =
+      window.__KixoVisitorId ||
+      "visitor-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    return window.__KixoVisitorId;
+  }
+}
+
 function showFormError(message) {
   formError.textContent = message;
 }
@@ -293,6 +317,7 @@ form.addEventListener("submit", (e) => {
       date: new Date().toLocaleString(),
       createdAt: Date.now(),
       status: "Pending",
+      visitorId: getVisitorId(),
     };
 
     const file = fileInput.files[0];
