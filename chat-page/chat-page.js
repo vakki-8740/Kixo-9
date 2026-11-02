@@ -10,13 +10,11 @@ const startView = document.getElementById("startView");
 const chatRoomView = document.getElementById("chatRoomView");
 const startForm = document.getElementById("startForm");
 const startChatBtn = document.getElementById("startChatBtn");
-const cancelProfileBtn = document.getElementById("cancelProfileBtn");
 const chatUserName = document.getElementById("chatUserName");
 const chatMobile = document.getElementById("chatMobile");
 const chatPassword = document.getElementById("chatPassword");
 const startError = document.getElementById("startError");
 const chatError = document.getElementById("chatError");
-const profileSummary = document.getElementById("profileSummary");
 const closedBanner = document.getElementById("closedBanner");
 const messagesEl = document.getElementById("chatMessages");
 const scrollBottomBtn = document.getElementById("scrollBottomBtn");
@@ -29,6 +27,24 @@ const pdfBtn = document.getElementById("pdfBtn");
 const imageInput = document.getElementById("imageInput");
 const pdfInput = document.getElementById("pdfInput");
 const charCount = document.getElementById("charCount");
+const messagePopupOverlay = document.getElementById("messagePopupOverlay");
+const messagePopupSender = document.getElementById("messagePopupSender");
+const messagePopupPreview = document.getElementById("messagePopupPreview");
+const messagePopupDate = document.getElementById("messagePopupDate");
+const messagePopupTime = document.getElementById("messagePopupTime");
+const messagePopupEditedRow = document.getElementById("messagePopupEditedRow");
+const messagePopupEdited = document.getElementById("messagePopupEdited");
+const messagePopupStatus = document.getElementById("messagePopupStatus");
+const messagePopupActions = document.getElementById("messagePopupActions");
+const popupViewImageBtn = document.getElementById("popupViewImageBtn");
+const popupOpenFileBtn = document.getElementById("popupOpenFileBtn");
+const popupCopyBtn = document.getElementById("popupCopyBtn");
+const popupEditBtn = document.getElementById("popupEditBtn");
+const popupRetryBtn = document.getElementById("popupRetryBtn");
+const popupDeleteBtn = document.getElementById("popupDeleteBtn");
+const editMessageForm = document.getElementById("editMessageForm");
+const editMessageInput = document.getElementById("editMessageInput");
+const saveEditBtn = document.getElementById("saveEditBtn");
 const supportDot = document.getElementById("supportDot");
 const supportStatusText = document.getElementById("supportStatusText");
 const connectionBadge = document.getElementById("connectionBadge");
@@ -54,7 +70,8 @@ let settingsData = null;
 let pendingAttachment = null;
 let localSequence = 0;
 let toastTimer = null;
-let editingProfile = false;
+let selectedMessage = null;
+let selectedMessageKey = "";
 
 function makeId(prefix) {
   if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -190,11 +207,9 @@ function updateComposerState() {
   charCount.textContent = messageInput.value.length + " / " + MAX_MESSAGE_LENGTH;
 }
 
-function showStartView(editing) {
-  editingProfile = !!editing;
+function showStartView() {
   startView.hidden = false;
   chatRoomView.hidden = true;
-  cancelProfileBtn.hidden = !profile;
 
   if (profile) {
     chatUserName.value = profile.userName || "";
@@ -212,12 +227,8 @@ function showStartView(editing) {
 }
 
 function showChatRoom() {
-  editingProfile = false;
   startView.hidden = true;
   chatRoomView.hidden = false;
-  profileSummary.textContent = profile
-    ? (profile.userName || "Guest") + (profile.mobile ? " · " + profile.mobile : "")
-    : "Guest";
   loadDraft();
   updateComposerState();
   requestAnimationFrame(() => scrollToBottom(false));
@@ -328,8 +339,6 @@ function handleThreadUpdate(nextThread) {
       visitorId: thread.visitorId || (profile && profile.visitorId) || getVisitorId(),
     };
     saveProfile();
-    profileSummary.textContent =
-      (profile.userName || "Guest") + (profile.mobile ? " · " + profile.mobile : "");
   }
 
   closedBanner.hidden = !threadClosed();
@@ -381,6 +390,31 @@ function formatSize(bytes) {
   return (value / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+function fullMessageDate(timestamp) {
+  if (!timestamp) return "-";
+  return new Date(timestamp).toLocaleDateString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function fullMessageDateTime(timestamp) {
+  if (!timestamp) return "-";
+  return fullMessageDate(timestamp) + " · " + messageTime(timestamp);
+}
+
+function getMessageKey(message) {
+  return String((message && (message.clientId || message.id)) || "");
+}
+
+function resolveSelectedMessage() {
+  if (!selectedMessageKey) return selectedMessage;
+  const found = allMessages().find((message) => getMessageKey(message) === selectedMessageKey);
+  if (found) selectedMessage = found;
+  return found || null;
+}
+
 function safeAttachmentUrl(value) {
   const url = String(value || "");
   if (/^(data:|blob:|https:\/\/)/i.test(url)) return url;
@@ -409,15 +443,6 @@ function appendLinkedText(container, text) {
   });
 }
 
-function createAction(label, action, danger) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "message-action" + (danger ? " danger" : "");
-  button.dataset.action = action;
-  button.textContent = label;
-  return button;
-}
-
 function buildMessage(message) {
   const mine = message.sender === "user";
   const row = document.createElement("div");
@@ -429,7 +454,25 @@ function buildMessage(message) {
   row.dataset.messageId = message.id || message.clientId || "";
 
   const bubble = document.createElement("div");
-  bubble.className = "message-bubble";
+  bubble.className =
+    "message-bubble" + (selectedMessageKey && getMessageKey(message) === selectedMessageKey ? " selected" : "");
+  bubble.tabIndex = 0;
+  bubble.setAttribute("role", "button");
+  bubble.setAttribute("aria-label", "Open message options");
+  bubble.title = "Tap for options";
+  bubble.addEventListener("click", (e) => {
+    if (e.target.closest("a:not(.file-card), button")) return;
+    const selectedText = window.getSelection ? window.getSelection().toString() : "";
+    if (selectedText) return;
+    openMessagePopup(message);
+  });
+  bubble.addEventListener("keydown", (e) => {
+    if (e.target !== bubble) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openMessagePopup(message);
+    }
+  });
 
   if (!mine) {
     const sender = document.createElement("div");
@@ -446,7 +489,6 @@ function buildMessage(message) {
       image.src = imageUrl;
       image.alt = message.fileName || "Chat image";
       image.loading = "lazy";
-      image.addEventListener("click", () => openImageView(imageUrl));
       bubble.appendChild(image);
     } else {
       const text = document.createElement("div");
@@ -469,6 +511,11 @@ function buildMessage(message) {
     card.target = "_blank";
     card.rel = "noopener noreferrer";
     if (message.fileName) card.download = message.fileName;
+    card.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openMessagePopup(message);
+    });
 
     const icon = document.createElement("div");
     icon.className = "file-icon";
@@ -519,35 +566,18 @@ function buildMessage(message) {
   time.textContent = messageTime(message.createdAt);
   meta.appendChild(time);
 
+  if (message.edited) {
+    const edited = document.createElement("span");
+    edited.textContent = "Edited";
+    meta.appendChild(edited);
+  }
+
   if (mine && !message._localOnly) {
     const status = document.createElement("span");
     status.textContent = message._failed ? "Failed" : message._pending ? "Sending..." : "Sent ✓";
     meta.appendChild(status);
   }
   bubble.appendChild(meta);
-
-  const actions = document.createElement("div");
-  actions.className = "message-actions";
-
-  if (message.type === "text" && message.text) {
-    const copyButton = createAction("Copy", "copy", false);
-    copyButton.addEventListener("click", () => copyMessageText(message.text));
-    actions.appendChild(copyButton);
-  }
-
-  if (message._failed) {
-    const retryButton = createAction("Retry", "retry", false);
-    retryButton.addEventListener("click", () => retryMessage(message));
-    actions.appendChild(retryButton);
-  }
-
-  if (mine) {
-    const deleteButton = createAction("Delete", "delete", true);
-    deleteButton.addEventListener("click", () => deleteOwnMessage(message));
-    actions.appendChild(deleteButton);
-  }
-
-  bubble.appendChild(actions);
   row.appendChild(bubble);
   return row;
 }
@@ -566,6 +596,7 @@ function renderMessages(options) {
 
   if (!messagesLoaded && !localMessages.length) {
     messagesEl.innerHTML = '<p class="loading">Loading messages...</p>';
+    refreshOpenMessagePopup();
     return;
   }
 
@@ -575,6 +606,7 @@ function renderMessages(options) {
     empty.className = "empty-state";
     empty.innerHTML = "<strong>No messages yet</strong>Send your first message to the support team.";
     messagesEl.appendChild(empty);
+    refreshOpenMessagePopup();
     return;
   }
 
@@ -597,6 +629,8 @@ function renderMessages(options) {
     scrollToBottom(false);
     scrollBottomBtn.hidden = true;
   }
+
+  refreshOpenMessagePopup();
 }
 
 function isNearBottom() {
@@ -610,6 +644,204 @@ function scrollToBottom(smooth) {
       behavior: smooth ? "smooth" : "auto",
     });
   });
+}
+
+function messageStatusLabel(message) {
+  if (message._localOnly) return "Local preview only";
+  if (message._failed) return "Failed";
+  if (message._pending) return "Sending...";
+  return message.sender === "user" ? "Sent" : "Received";
+}
+
+function canEditMessage(message) {
+  return !!message && message.sender === "user" && !message._pending;
+}
+
+function openMessagePopup(message) {
+  selectedMessage = message;
+  selectedMessageKey = getMessageKey(message);
+  editMessageForm.hidden = true;
+  messagePopupActions.hidden = false;
+  messagePopupOverlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  renderMessagePopup();
+  renderMessages({ scrollBottom: false });
+  document.getElementById("messagePopupClose").focus();
+}
+
+function closeMessagePopup() {
+  messagePopupOverlay.hidden = true;
+  editMessageForm.hidden = true;
+  messagePopupActions.hidden = false;
+  selectedMessage = null;
+  selectedMessageKey = "";
+  document.body.style.overflow = "";
+  renderMessages({ scrollBottom: false });
+}
+
+function renderMessagePopup() {
+  const message = resolveSelectedMessage();
+  if (!message) {
+    closeMessagePopup();
+    return;
+  }
+
+  const mine = message.sender === "user";
+  const attachmentUrl = safeAttachmentUrl(message.objectUrl || message.data);
+
+  messagePopupSender.textContent = mine ? "You" : "Support Team";
+  messagePopupPreview.innerHTML = "";
+
+  if (message.type === "image" && attachmentUrl) {
+    const image = document.createElement("img");
+    image.className = "message-popup-image";
+    image.src = attachmentUrl;
+    image.alt = message.fileName || "Chat image";
+    messagePopupPreview.appendChild(image);
+
+    if (message.text) {
+      const caption = document.createElement("div");
+      caption.className = "message-popup-caption";
+      appendLinkedText(caption, message.text);
+      messagePopupPreview.appendChild(caption);
+    }
+  } else if (message.type === "file") {
+    const fileText = [message.fileName || "PDF file", message.fileType || "PDF", formatSize(message.fileSize)]
+      .filter(Boolean)
+      .join(" · ");
+    messagePopupPreview.textContent = message.text ? fileText + "\n" + message.text : fileText;
+  } else {
+    appendLinkedText(messagePopupPreview, message.text || "");
+  }
+
+  messagePopupDate.textContent = fullMessageDate(message.createdAt);
+  messagePopupTime.textContent = messageTime(message.createdAt) || "-";
+  messagePopupStatus.textContent = messageStatusLabel(message);
+  messagePopupEditedRow.hidden = !message.edited;
+  messagePopupEdited.textContent = message.editedAt ? fullMessageDateTime(message.editedAt) : "Yes";
+
+  popupViewImageBtn.hidden = !(message.type === "image" && attachmentUrl);
+  popupOpenFileBtn.hidden = !(message.type === "file" && attachmentUrl);
+  popupCopyBtn.hidden = !message.text;
+  popupEditBtn.hidden = !canEditMessage(message);
+  popupRetryBtn.hidden = !message._failed;
+  popupDeleteBtn.hidden = !mine;
+  const hasPopupAction = [
+    popupViewImageBtn,
+    popupOpenFileBtn,
+    popupCopyBtn,
+    popupEditBtn,
+    popupRetryBtn,
+    popupDeleteBtn,
+  ].some((button) => !button.hidden);
+  messagePopupActions.hidden = !editMessageForm.hidden || !hasPopupAction;
+}
+
+function refreshOpenMessagePopup() {
+  if (messagePopupOverlay.hidden) return;
+  const message = resolveSelectedMessage();
+  if (!message) {
+    closeMessagePopup();
+    return;
+  }
+  if (editMessageForm.hidden) renderMessagePopup();
+}
+
+function openSelectedFile(message) {
+  const fileUrl = safeAttachmentUrl(message.objectUrl || message.data);
+  if (!fileUrl) return;
+
+  const link = document.createElement("a");
+  link.href = fileUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  if (message.fileName) link.download = message.fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function startEditSelectedMessage() {
+  const message = resolveSelectedMessage();
+  if (!message || !canEditMessage(message)) return;
+
+  editMessageInput.value = message.text || "";
+  editMessageForm.hidden = false;
+  messagePopupActions.hidden = true;
+  editMessageInput.focus();
+  editMessageInput.select();
+}
+
+function cancelEditSelectedMessage() {
+  editMessageForm.hidden = true;
+  messagePopupActions.hidden = false;
+  renderMessagePopup();
+}
+
+async function saveEditedMessage(e) {
+  e.preventDefault();
+  const message = resolveSelectedMessage();
+  if (!message || !canEditMessage(message)) return;
+
+  const newText = editMessageInput.value.trim();
+  if (message.type === "text" && !newText) {
+    showToast("Message cannot be empty.", "err");
+    editMessageInput.focus();
+    return;
+  }
+
+  if (newText === (message.text || "")) {
+    cancelEditSelectedMessage();
+    return;
+  }
+
+  const editedAt = Date.now();
+
+  if (localMessages.includes(message) && !message._remoteId) {
+    message.text = newText;
+    message.edited = true;
+    message.editedAt = editedAt;
+    closeMessagePopup();
+    renderMessages({ scrollBottom: false });
+    showToast("Message edited", "ok");
+    return;
+  }
+
+  saveEditBtn.disabled = true;
+  saveEditBtn.textContent = "Saving...";
+
+  try {
+    const api = await chatWhenReady();
+    if (typeof api.updateMessage !== "function") {
+      throw new Error("Edit is not available right now");
+    }
+
+    const remoteMessageId = message._remoteId || message.id;
+    const latestRemote = remoteMessages[remoteMessages.length - 1];
+    const previewText =
+      message.type === "text" ? newText : message.type === "image" ? "Image" : message.fileName || "File";
+    const isLatestRemote =
+      !remoteMessages.length || (latestRemote && latestRemote.id === remoteMessageId);
+    const threadPreview = isLatestRemote ? previewText : undefined;
+    await api.updateMessage(
+      chatId,
+      remoteMessageId,
+      { text: newText, edited: true, editedAt },
+      threadPreview
+    );
+
+    message.text = newText;
+    message.edited = true;
+    message.editedAt = editedAt;
+    closeMessagePopup();
+    renderMessages({ scrollBottom: false });
+    showToast("Message edited", "ok");
+  } catch (err) {
+    showToast("Edit failed: " + (err && err.message ? err.message : err), "err");
+  } finally {
+    saveEditBtn.disabled = false;
+    saveEditBtn.textContent = "Save";
+  }
 }
 
 async function copyMessageText(text) {
@@ -639,6 +871,7 @@ async function deleteOwnMessage(message) {
   if (!confirm("Delete this message?")) return;
 
   if (message._localOnly || message._pending || message._failed) {
+    if (message._pending) message._cancelled = true;
     localMessages = localMessages.filter((m) => m !== message);
     if (message.objectUrl && window.URL && URL.revokeObjectURL) {
       try { URL.revokeObjectURL(message.objectUrl); } catch {}
@@ -649,7 +882,11 @@ async function deleteOwnMessage(message) {
 
   try {
     const api = await chatWhenReady();
-    await api.deleteMessage(chatId, message.id);
+    await api.deleteMessage(chatId, message._remoteId || message.id);
+    if (message.clientId) {
+      localMessages = localMessages.filter((m) => m.clientId !== message.clientId);
+    }
+    renderMessages({ scrollBottom: false });
     showToast("Message deleted", "ok");
   } catch (err) {
     showToast("Delete failed: " + (err && err.message ? err.message : err), "err");
@@ -671,21 +908,39 @@ function cleanRemotePayload(message) {
 async function deliverTextMessage(localMessage) {
   try {
     const api = await chatWhenReady();
+    if (localMessage._cancelled) return;
+
     const payload = cleanRemotePayload(localMessage);
-    await api.sendMessage(chatId, payload, profile);
+    const remoteId = await api.sendMessage(chatId, payload, profile);
+
+    if (localMessage._cancelled) {
+      if (remoteId && typeof api.deleteMessage === "function") {
+        try {
+          await api.deleteMessage(chatId, remoteId);
+        } catch {}
+      }
+      return;
+    }
+
+    if (remoteId) {
+      localMessage._remoteId = remoteId;
+      localMessage.id = remoteId;
+    }
     localMessage._pending = false;
     localMessage._failed = false;
     renderMessages({ scrollBottom: true });
     notifyChatTelegram(payload);
   } catch (err) {
+    if (localMessage._cancelled) return;
     localMessage._pending = false;
     localMessage._failed = true;
     renderMessages({ scrollBottom: true });
-    showToast("Message failed to send. Tap Retry.", "err");
+    showToast("Message failed to send. Tap the message, then Retry.", "err");
   }
 }
 
 function retryMessage(message) {
+  message._cancelled = false;
   message._pending = true;
   message._failed = false;
   renderMessages({ scrollBottom: true });
@@ -1004,14 +1259,6 @@ startForm.addEventListener("submit", async (e) => {
   }
 });
 
-cancelProfileBtn.addEventListener("click", () => {
-  if (profile) showChatRoom();
-});
-
-document.getElementById("changeProfileBtn").addEventListener("click", () => {
-  showStartView(true);
-});
-
 document.getElementById("reopenChatBtn").addEventListener("click", async () => {
   try {
     const api = await chatWhenReady();
@@ -1077,6 +1324,53 @@ chatRoomView.addEventListener("drop", (e) => {
   if (file) selectAttachment(file, file.type && file.type.startsWith("image/") ? "image" : "file");
 });
 
+document.getElementById("messagePopupClose").addEventListener("click", closeMessagePopup);
+
+messagePopupOverlay.addEventListener("click", (e) => {
+  if (e.target === messagePopupOverlay) closeMessagePopup();
+});
+
+popupViewImageBtn.addEventListener("click", () => {
+  const message = resolveSelectedMessage();
+  if (!message) return;
+  const imageUrl = safeAttachmentUrl(message.objectUrl || message.data);
+  closeMessagePopup();
+  if (imageUrl) openImageView(imageUrl);
+});
+
+popupOpenFileBtn.addEventListener("click", () => {
+  const message = resolveSelectedMessage();
+  if (!message) return;
+  openSelectedFile(message);
+  closeMessagePopup();
+});
+
+popupCopyBtn.addEventListener("click", () => {
+  const message = resolveSelectedMessage();
+  if (!message || !message.text) return;
+  const text = message.text;
+  closeMessagePopup();
+  copyMessageText(text);
+});
+
+popupEditBtn.addEventListener("click", startEditSelectedMessage);
+document.getElementById("cancelEditBtn").addEventListener("click", cancelEditSelectedMessage);
+editMessageForm.addEventListener("submit", saveEditedMessage);
+
+popupRetryBtn.addEventListener("click", () => {
+  const message = resolveSelectedMessage();
+  if (!message) return;
+  closeMessagePopup();
+  retryMessage(message);
+});
+
+popupDeleteBtn.addEventListener("click", () => {
+  const message = resolveSelectedMessage();
+  if (!message) return;
+  closeMessagePopup();
+  deleteOwnMessage(message);
+});
+
 messagesEl.addEventListener("scroll", () => {
   if (isNearBottom()) scrollBottomBtn.hidden = true;
 });
@@ -1097,6 +1391,10 @@ document.getElementById("homeBtn").addEventListener("click", () => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if (!messagePopupOverlay.hidden) {
+    closeMessagePopup();
+    return;
+  }
   closeMenu();
   if (imgOverlay.classList.contains("show")) closeImageView();
 });
@@ -1128,7 +1426,7 @@ if (profile && chatId) {
     setChatError("Could not connect chat: " + (err && err.message ? err.message : err));
   });
 } else {
-  showStartView(false);
+  showStartView();
 }
 
 updateSupportStatus();

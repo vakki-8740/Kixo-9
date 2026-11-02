@@ -8,6 +8,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { firebaseConfig } from "../firebase-config.js";
 
@@ -99,6 +100,23 @@ try {
 
     deleteMessage(chatId, messageId) {
       return deleteDoc(doc(db, "chats", chatId, "messages", messageId));
+    },
+
+    async updateMessage(chatId, messageId, fields, threadPreview) {
+      await updateDoc(doc(db, "chats", chatId, "messages", messageId), fields);
+
+      if (typeof threadPreview === "string") {
+        await setDoc(
+          doc(db, "chats", chatId),
+          {
+            lastMessage: threadPreview.slice(0, 120),
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
+      }
+
+      return true;
     },
 
     setThreadStatus(chatId, status) {
