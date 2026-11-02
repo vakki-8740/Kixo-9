@@ -123,7 +123,8 @@
     }
 
     input,
-    select {
+    select,
+    textarea {
       width: 100%;
       padding: 12px 14px;
       border: 1px solid #d1d5db;
@@ -135,18 +136,27 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
+    textarea {
+      min-height: 96px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+
     input:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       border-color: #2563eb;
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
-    input::placeholder {
+    input::placeholder,
+    textarea::placeholder {
       color: #9ca3af;
     }
 
     input.invalid,
-    select.invalid {
+    select.invalid,
+    textarea.invalid {
       border-color: #ef4444;
     }
 

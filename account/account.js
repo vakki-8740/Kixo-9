@@ -1,11 +1,11 @@
 // Is page ka problem fix hai - sirf isi problem ki complaint banegi.
 const COMPLAINT_PROBLEM = "Account Problem";
-const UPLOAD_HINT = "Select screenshot";
-const UPLOAD_MISSING = "Screenshot required";
+const UPLOAD_HINT = "Select issue image";
+const UPLOAD_MISSING = "Issue image required";
 const IMAGE_REQUIRED = false;
 
 const form = document.getElementById("complaintForm");
-const amountInput = document.getElementById("amount");
+const writtenProblemInput = document.getElementById("writtenProblem");
 const fileInput = document.getElementById("paymentImage");
 const uploadText = document.getElementById("uploadText");
 const uploadBox = document.getElementById("uploadBox");
@@ -153,7 +153,7 @@ function sendTelegramAlert(complaint, attempt) {
     "Mobile: " + complaint.mobile,
     "Email: " + (complaint.email || "-"),
     "Problem: " + complaint.problem,
-    "Amount: " + (complaint.amount ? "Rs." + complaint.amount : "-"),
+    "Written Problem: " + (complaint.writtenProblem || "-"),
     "Time: " + complaint.date,
     "Status: " + complaint.status,
   ].join("\n");
@@ -229,7 +229,7 @@ fileInput.addEventListener("change", () => {
 function validate() {
   let valid = true;
   const problems = [];
-  const fields = document.querySelectorAll("input[required]");
+  const fields = document.querySelectorAll("input[required], textarea[required]");
 
   fields.forEach((field) => {
     field.classList.remove("invalid");
@@ -257,13 +257,6 @@ function validate() {
     problems.push("Enter a valid email id.");
   }
 
-  const amount = Number(amountInput.value);
-  if (amountInput.value && (!Number.isFinite(amount) || amount < 1)) {
-    amountInput.classList.add("invalid");
-    valid = false;
-    problems.push("Enter an amount of 1 or more.");
-  }
-
   if (IMAGE_REQUIRED && !fileInput.files[0]) {
     uploadBox.classList.remove("has-file");
     uploadBox.classList.add("upload-error");
@@ -286,7 +279,7 @@ function validate() {
   return valid;
 }
 
-document.querySelectorAll("input").forEach((field) => {
+document.querySelectorAll("input, textarea").forEach((field) => {
   field.addEventListener("input", () => {
     field.classList.remove("invalid");
     clearFormError();
@@ -313,7 +306,7 @@ form.addEventListener("submit", (e) => {
       mobile: document.getElementById("mobile").value.trim(),
       email: document.getElementById("email").value.trim(),
       problem: COMPLAINT_PROBLEM,
-      amount: amountInput.value,
+      writtenProblem: writtenProblemInput.value.trim(),
       date: new Date().toLocaleString(),
       createdAt: Date.now(),
       status: "Pending",

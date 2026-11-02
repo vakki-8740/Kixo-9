@@ -173,6 +173,7 @@ function filteredDocs() {
       item.mobile,
       item.email,
       item.problem,
+      item.writtenProblem,
       item.amount,
       complaintStatus(item),
     ]
@@ -359,7 +360,18 @@ function renderDetail() {
 
   const statusText = complaintStatus(item);
   const successful = statusText === "Successful";
+  const isAccountProblem = problemType(item.problem) === "account";
+  const writtenProblem = String(item.writtenProblem || "").trim();
+  const writtenProblemRow = writtenProblem
+    ? `<div class="detail-row detail-row-full"><span class="lbl">Written Problem</span><span class="val">${esc(writtenProblem)}</span></div>`
+    : isAccountProblem
+      ? `<div class="detail-row detail-row-full"><span class="lbl">Written Problem</span><span class="val muted-value">Not provided</span></div>`
+      : "";
   const amountText = formatAmount(item.amount) || "Not provided";
+  const amountRow =
+    !isAccountProblem || item.amount
+      ? `<div class="detail-row"><span class="lbl">Amount</span><span class="val">${amountText}</span></div>`
+      : "";
   const screenshotText = item.image
     ? "Uploaded"
     : problemType(item.problem) === "account"
@@ -389,7 +401,8 @@ function renderDetail() {
       <div class="detail-row"><span class="lbl">Game Password</span><span class="copy-value"><span class="val secret">${esc(item.password) || "-"}</span>${copyButton("password", "Game password", item.password)}</span></div>
       <div class="detail-row"><span class="lbl">Email ID</span><span class="copy-value"><span class="val">${esc(item.email || "-")}</span>${copyButton("email", "Email ID", item.email)}</span></div>
       <div class="detail-row"><span class="lbl">Problem</span><span class="val">${esc(problemLabel(item.problem))}</span></div>
-      <div class="detail-row"><span class="lbl">Amount</span><span class="val">${amountText}</span></div>
+      ${writtenProblemRow}
+      ${amountRow}
       <div class="detail-row"><span class="lbl">Screenshot</span><span class="val${item.image ? "" : " muted-value"}">${screenshotText}</span></div>
       <div class="detail-row"><span class="lbl">Status</span><span class="val">${statusText}</span></div>
     </div>
@@ -597,7 +610,7 @@ function filteredVisitorRecords(records) {
 
     const visitor = record.visitor || {};
     const complaintText = record.complaints
-      .map((item) => [item.problem, complaintStatus(item), item.amount].join(" "))
+      .map((item) => [item.problem, item.writtenProblem, complaintStatus(item), item.amount].join(" "))
       .join(" ");
     const searchable = [
       record.displayName,
@@ -727,6 +740,14 @@ function renderVisitorDetail() {
 
   const visitor = record.visitor || {};
   const latest = record.latestComplaint;
+  const latestWrittenProblem = latest ? String(latest.writtenProblem || "").trim() : "";
+  const latestIssueField = latest
+    ? latestWrittenProblem
+      ? `<div class="detail-row detail-row-full"><span class="lbl">Latest Written Problem</span><span class="val">${esc(latestWrittenProblem)}</span></div>`
+      : problemType(latest.problem) === "account" && !latest.amount
+        ? ""
+        : visitorDetailField("Latest Amount", plainAmount(latest.amount) || "Not provided")
+    : "";
   const complaintProfile = latest
     ? `
       <h3 class="detail-section-title">Complaint Profile</h3>
@@ -737,7 +758,7 @@ function renderVisitorDetail() {
         <div class="detail-row"><span class="lbl">Email ID</span><span class="copy-value"><span class="val">${esc(latest.email || "-")}</span>${copyButton("email", "Email ID", latest.email)}</span></div>
         ${visitorDetailField("Latest Problem", problemLabel(latest.problem))}
         ${visitorDetailField("Latest Status", complaintStatus(latest))}
-        ${visitorDetailField("Latest Amount", plainAmount(latest.amount) || "Not provided")}
+        ${latestIssueField}
         ${visitorDetailField("Total Complaints", record.complaintCount)}
       </div>
     `

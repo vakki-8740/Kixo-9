@@ -129,6 +129,13 @@ function renderMailbox() {
            </div>`
         : "";
 
+      const writtenProblem = String(c.writtenProblem || "").trim();
+      const detailRow = writtenProblem
+        ? `<div class="complaint-row full"><span class="lbl">Written Problem</span><span class="val">${esc(writtenProblem)}</span></div>`
+        : c.amount || c.problem !== "Account Problem"
+          ? `<div class="complaint-row"><span class="lbl">Amount</span><span class="val">${c.amount ? "&#8377;" + esc(c.amount) : "-"}</span></div>`
+          : "";
+
       const row = document.createElement("div");
       row.className = "complaint-item";
       row.innerHTML = `
@@ -143,7 +150,7 @@ function renderMailbox() {
           <div class="complaint-row"><span class="lbl">Mobile Number</span><span class="val">${esc(c.mobile)}</span></div>
           <div class="complaint-row"><span class="lbl">Email ID</span><span class="val">${esc(c.email)}</span></div>
           <div class="complaint-row"><span class="lbl">Problem</span><span class="val">${esc(c.problem)}</span></div>
-          <div class="complaint-row"><span class="lbl">Amount</span><span class="val">${c.amount ? "&#8377;" + esc(c.amount) : "-"}</span></div>
+          ${detailRow}
         </div>
         ${viewBtn}
       `;

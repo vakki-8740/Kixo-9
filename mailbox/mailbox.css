@@ -178,6 +178,10 @@
       min-width: 0;
     }
 
+    .complaint-row.full {
+      grid-column: 1 / -1;
+    }
+
     .complaint-row .lbl {
       font-size: 11px;
       font-weight: 700;

@@ -63,19 +63,19 @@
           </div>
 
           <div class="field full">
-            <label for="amount" id="amountLabel">Enter Amount (Optional)</label>
-            <input type="number" id="amount" placeholder="Enter amount if related to your issue" min="1" />
+            <label for="writtenProblem">Write Problem</label>
+            <textarea id="writtenProblem" placeholder="Write your account problem" rows="3" required></textarea>
           </div>
 
           <div class="field full">
-            <label for="paymentImage" id="uploadLabel">Upload Screenshot (Optional)</label>
+            <label for="paymentImage" id="uploadLabel">Upload issue image (Optional)</label>
             <div class="upload-box" id="uploadBox">
               <input type="file" id="paymentImage" accept="image/*" />
               <span class="upload-content">
                 <span class="upload-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
                 </span>
-                <span class="upload-text" id="uploadText">Select screenshot</span>
+                <span class="upload-text" id="uploadText">Select issue image</span>
                 <span class="upload-action" id="uploadAction">Choose</span>
               </span>
             </div>
@@ -107,7 +107,7 @@
     <span class="upload-popup-icon" aria-hidden="true">&#10003;</span>
     <span class="upload-popup-copy">
       <strong>Image uploaded</strong>
-      <small id="uploadPopupText">Your screenshot is ready.</small>
+      <small id="uploadPopupText">Your issue image is ready.</small>
     </span>
   </div>
 
