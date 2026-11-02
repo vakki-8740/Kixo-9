@@ -3,12 +3,18 @@ const COMPLAINT_PROBLEM = "Withdrawal Problem";
 const UPLOAD_HINT = "Click to upload withdrawal issue screenshot";
 const UPLOAD_MISSING = "Please upload withdrawal issue image";
 const IMAGE_REQUIRED = true;
+const UPLOAD_SUBTEXT = "Tap to choose a screenshot from your device";
 
 const form = document.getElementById("complaintForm");
 const amountInput = document.getElementById("amount");
 const fileInput = document.getElementById("paymentImage");
 const uploadText = document.getElementById("uploadText");
 const uploadBox = document.getElementById("uploadBox");
+const uploadSubtext = document.getElementById("uploadSubtext");
+const uploadAction = document.getElementById("uploadAction");
+const uploadPopup = document.getElementById("uploadPopup");
+const uploadPopupText = document.getElementById("uploadPopupText");
+let uploadPopupTimer = null;
 const sendBtn = document.getElementById("sendBtn");
 const popupOverlay = document.getElementById("popupOverlay");
 const closePopup = document.getElementById("closePopup");
@@ -144,17 +150,68 @@ function getComplaints() {
   }
 }
 
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function hideUploadPopup() {
+  uploadPopup.classList.remove("show");
+  uploadPopup.setAttribute("aria-hidden", "true");
+}
+
+function showUploadPopup(file) {
+  uploadPopupText.textContent = file.name;
+  uploadPopup.classList.add("show");
+  uploadPopup.setAttribute("aria-hidden", "false");
+  clearTimeout(uploadPopupTimer);
+  uploadPopupTimer = setTimeout(hideUploadPopup, 2600);
+}
+
+function resetUploadUI() {
+  uploadBox.classList.remove("has-file", "upload-error");
+  uploadText.textContent = UPLOAD_HINT;
+  uploadText.style.color = "";
+  uploadText.removeAttribute("title");
+  uploadSubtext.textContent = UPLOAD_SUBTEXT;
+  uploadAction.textContent = "Choose Image";
+  hideUploadPopup();
+}
+
+function showSelectedUpload(file, showPopup) {
+  uploadBox.classList.remove("upload-error");
+  uploadBox.classList.add("has-file");
+  uploadText.textContent = file.name;
+  uploadText.style.color = "";
+  uploadText.title = file.name;
+  const size = formatFileSize(file.size);
+  uploadSubtext.textContent = "Ready to send" + (size ? " · " + size : "") + " · Tap to change";
+  uploadAction.textContent = "Change Image";
+  if (showPopup) showUploadPopup(file);
+}
+
 // Image upload -> box turns green, no preview
 fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
-  if (file) {
-    uploadText.textContent = "\u2713 " + file.name;
-    uploadBox.classList.add("has-file");
-  } else {
-    uploadText.textContent = UPLOAD_HINT;
-    uploadBox.classList.remove("has-file");
+
+  if (file && file.type && !file.type.startsWith("image/")) {
+    fileInput.value = "";
+    resetUploadUI();
+    uploadBox.classList.add("upload-error");
+    uploadText.textContent = "Please choose an image file";
+    uploadText.style.color = "#dc2626";
+    uploadSubtext.textContent = "Only image screenshots are allowed";
+    showToast("Please choose an image file.");
+    return;
   }
-  uploadText.style.color = "";
+
+  if (file) {
+    showSelectedUpload(file, true);
+  } else {
+    resetUploadUI();
+  }
 });
 
 // Simple validation
@@ -198,13 +255,16 @@ function validate() {
 
   if (IMAGE_REQUIRED && !fileInput.files[0]) {
     uploadBox.classList.remove("has-file");
+    uploadBox.classList.add("upload-error");
     uploadText.textContent = UPLOAD_MISSING;
-    uploadText.style.color = "#ef4444";
+    uploadText.style.color = "#dc2626";
+    uploadSubtext.textContent = "Screenshot is required";
+    uploadAction.textContent = "Choose Image";
     valid = false;
     problems.push(UPLOAD_MISSING);
   } else if (fileInput.files[0]) {
-    uploadBox.classList.add("has-file");
-    uploadText.style.color = "";
+    uploadBox.classList.remove("upload-error");
+    showSelectedUpload(fileInput.files[0], false);
   }
 
   if (valid) {
@@ -370,9 +430,7 @@ function saveComplaint(complaint) {
 
 function resetForm() {
   form.reset();
-  uploadBox.classList.remove("has-file");
-  uploadText.textContent = UPLOAD_HINT;
-  uploadText.style.color = "";
+  resetUploadUI();
 }
 
 function dismissPopup() {

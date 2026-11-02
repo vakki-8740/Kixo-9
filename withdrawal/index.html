@@ -70,8 +70,18 @@
           <div class="field full">
             <label for="paymentImage" id="uploadLabel">Upload Withdrawal Issue Image</label>
             <div class="upload-box" id="uploadBox">
-              <input type="file" id="paymentImage" accept="image/*" />
-              <span class="upload-text" id="uploadText">Click to upload withdrawal issue screenshot</span>
+              <input type="file" id="paymentImage" accept="image/*" aria-describedby="uploadSubtext" />
+              <span class="upload-status" id="uploadStatus" aria-hidden="true">&#10003; Uploaded</span>
+              <span class="upload-content">
+                <span class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>
+                </span>
+                <span class="upload-copy">
+                  <span class="upload-text" id="uploadText">Click to upload withdrawal issue screenshot</span>
+                  <span class="upload-subtext" id="uploadSubtext">Tap to choose a screenshot from your device</span>
+                </span>
+                <span class="upload-action" id="uploadAction">Choose Image</span>
+              </span>
             </div>
           </div>
         </div>
@@ -95,6 +105,14 @@
       <p>Your complaint sent. Your problem will be <strong>resolved in 30 minutes</strong>.</p>
       <button id="closePopup">OK</button>
     </div>
+  </div>
+
+  <div class="upload-popup" id="uploadPopup" role="status" aria-live="polite" aria-hidden="true">
+    <span class="upload-popup-icon" aria-hidden="true">&#10003;</span>
+    <span class="upload-popup-copy">
+      <strong>Image uploaded</strong>
+      <small id="uploadPopupText">Your screenshot is ready.</small>
+    </span>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
