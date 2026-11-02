@@ -42,6 +42,7 @@ function currentPageName() {
   if (path.includes("/withdrawal/")) return "Withdrawal Problem";
   if (path.includes("/account/")) return "Account Problem";
   if (path.includes("/mailbox/")) return "All Complaints";
+  if (path.includes("/chat-page/")) return "Live Chat";
   if (path.includes("/terms/")) return "Terms & Conditions";
   if (path.includes("/about/")) return "About Page";
   return "Home Page";
