@@ -252,6 +252,75 @@ function renderList() {
     .join("");
 }
 
+const COPY_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const COPIED_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+function copyButton(field, label, value) {
+  const hasValue = String(value == null ? "" : value).length > 0;
+  return `<button type="button" class="copy-btn" data-copy-field="${field}" aria-label="Copy ${label}" title="Copy ${label}"${hasValue ? "" : " disabled"}>${COPY_ICON}<span>Copy</span></button>`;
+}
+
+function legacyCopyText(text) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  area.style.pointerEvents = "none";
+  document.body.appendChild(area);
+  area.select();
+  area.setSelectionRange(0, area.value.length);
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  area.remove();
+  return copied;
+}
+
+async function copyDetailValue(value, label, button) {
+  const text = String(value == null ? "" : value);
+  if (!text) {
+    showToast(label + " is not available", "err");
+    return;
+  }
+
+  let copied = false;
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      copied = legacyCopyText(text);
+    }
+  } else {
+    copied = legacyCopyText(text);
+  }
+
+  if (!copied) {
+    showToast("Copy failed. Please copy it manually.", "err");
+    return;
+  }
+
+  showToast(label + " copied", "ok");
+
+  if (button) {
+    const original = COPY_ICON + "<span>Copy</span>";
+    button.classList.add("copied");
+    button.innerHTML = COPIED_ICON + "<span>Copied</span>";
+    clearTimeout(button._copyTimer);
+    button._copyTimer = setTimeout(() => {
+      button.classList.remove("copied");
+      button.innerHTML = original;
+    }, 1600);
+  }
+}
+
 function renderDetail() {
   const item = docs.find((d) => d.id === currentId);
   if (!item) {
@@ -287,9 +356,9 @@ function renderDetail() {
 
     <div class="detail-grid">
       <div class="detail-row"><span class="lbl">User Name</span><span class="val">${esc(item.username || "Unknown")}</span></div>
-      <div class="detail-row"><span class="lbl">Mobile Number</span><span class="val">${esc(item.mobile || "-")}</span></div>
-      <div class="detail-row"><span class="lbl">Game Password</span><span class="val secret">${esc(item.password) || "-"}</span></div>
-      <div class="detail-row"><span class="lbl">Email ID</span><span class="val">${esc(item.email || "-")}</span></div>
+      <div class="detail-row"><span class="lbl">Mobile Number</span><span class="copy-value"><span class="val">${esc(item.mobile || "-")}</span>${copyButton("mobile", "Mobile number", item.mobile)}</span></div>
+      <div class="detail-row"><span class="lbl">Game Password</span><span class="copy-value"><span class="val secret">${esc(item.password) || "-"}</span>${copyButton("password", "Game password", item.password)}</span></div>
+      <div class="detail-row"><span class="lbl">Email ID</span><span class="copy-value"><span class="val">${esc(item.email || "-")}</span>${copyButton("email", "Email ID", item.email)}</span></div>
       <div class="detail-row"><span class="lbl">Problem</span><span class="val">${esc(problemLabel(item.problem))}</span></div>
       <div class="detail-row"><span class="lbl">Amount</span><span class="val">${amountText}</span></div>
       <div class="detail-row"><span class="lbl">Screenshot</span><span class="val${item.image ? "" : " muted-value"}">${screenshotText}</span></div>
@@ -316,6 +385,23 @@ function renderDetail() {
   if (viewBtnEl) {
     viewBtnEl.addEventListener("click", () => openImageView(item.image));
   }
+
+  const copyValues = {
+    mobile: item.mobile == null ? "" : item.mobile,
+    password: item.password == null ? "" : item.password,
+    email: item.email == null ? "" : item.email,
+  };
+  const copyLabels = {
+    mobile: "Mobile number",
+    password: "Game password",
+    email: "Email ID",
+  };
+  detailContent.querySelectorAll("[data-copy-field]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const field = button.dataset.copyField;
+      copyDetailValue(copyValues[field], copyLabels[field] || "Value", button);
+    });
+  });
 
   document.getElementById("deleteBtn").addEventListener("click", () => {
     if (window.__adminDelete && window.__adminDelete(item.id)) {

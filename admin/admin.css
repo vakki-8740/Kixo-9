@@ -1157,6 +1157,65 @@ select:focus-visible {
   font-weight: 500;
 }
 
+.copy-value {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.copy-value .val {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 76px;
+  padding: 6px 9px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  flex: none;
+}
+
+.copy-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.copy-btn.copied {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: var(--success);
+}
+
+.copy-btn:disabled {
+  background: var(--soft);
+  border-color: var(--border);
+  color: var(--faint);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
 .detail-actions {
   display: flex;
   flex-wrap: wrap;
