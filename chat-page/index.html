@@ -37,6 +37,10 @@
   </div>
 
   <main class="container" id="chatPageView">
+    <div class="page-topbar">
+      <button type="button" class="back-btn" id="homeBtn">&#8592; Back to Home</button>
+    </div>
+
     <section class="chat-card" aria-label="Live chat">
       <div class="chat-header">
         <div class="support-avatar" aria-hidden="true">
@@ -108,14 +112,6 @@
           <button type="button" class="scroll-bottom-btn" id="scrollBottomBtn" hidden>&darr; New messages</button>
         </div>
 
-        <div class="reply-preview" id="replyPreview" hidden>
-          <div class="reply-copy">
-            <strong id="replyTitle">Reply</strong>
-            <span id="replyText"></span>
-          </div>
-          <button type="button" class="mini-close" id="clearReplyBtn" aria-label="Cancel reply">&times;</button>
-        </div>
-
         <div class="attachment-preview" id="attachmentPreview" hidden></div>
 
         <form class="composer" id="chatForm">
@@ -142,8 +138,6 @@
         <input type="file" id="pdfInput" accept="application/pdf,.pdf" hidden />
       </section>
     </section>
-
-    <button type="button" class="back-btn" id="homeBtn">&#8592; Back to Home</button>
   </main>
 
   <div class="img-overlay" id="imgOverlay">

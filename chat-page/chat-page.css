@@ -9,10 +9,21 @@
   display: none !important;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   color: #1f2937;
-  min-height: 100vh;
 }
 
 button,
@@ -35,11 +46,11 @@ textarea {
 
 /* ---------- Header ---------- */
 .header {
+  flex: none;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   padding: 14px 24px;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 50;
 }
 
@@ -100,12 +111,29 @@ textarea {
 
 /* ---------- Layout ---------- */
 .container {
+  flex: 1;
+  width: 100%;
   max-width: 900px;
+  min-height: 0;
   margin: 0 auto;
-  padding: 32px 20px 60px;
+  padding: 16px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .chat-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -114,6 +142,7 @@ textarea {
 }
 
 .chat-header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -214,7 +243,13 @@ textarea {
 
 /* ---------- Start chat ---------- */
 .start-view {
-  padding: 30px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px 30px;
 }
 
 .start-copy {
@@ -347,14 +382,16 @@ textarea {
 
 /* ---------- Chat room ---------- */
 .chat-room {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: min(720px, calc(100vh - 176px));
-  min-height: 540px;
+  overflow: hidden;
   background: #f8fafc;
 }
 
 .profile-bar {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -399,6 +436,7 @@ textarea {
 }
 
 .closed-banner {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -430,9 +468,19 @@ textarea {
 
 .messages {
   height: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding: 20px 18px;
   scroll-behavior: smooth;
+}
+
+.messages::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .loading,
@@ -520,27 +568,6 @@ textarea {
   color: #2563eb;
   font-size: 12px;
   font-weight: 800;
-}
-
-.reply-quote {
-  margin-bottom: 8px;
-  padding: 8px 10px;
-  border-left: 3px solid #93c5fd;
-  border-radius: 7px;
-  background: rgba(15, 23, 42, 0.06);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.reply-quote b {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 12px;
-}
-
-.message-row.mine .reply-quote {
-  background: rgba(255, 255, 255, 0.16);
-  border-left-color: #bfdbfe;
 }
 
 .message-text {
@@ -698,40 +725,12 @@ textarea {
 }
 
 /* ---------- Composer ---------- */
-.reply-preview,
 .attachment-preview {
+  flex: none;
   margin: 0 14px 10px;
   border: 1px solid #dbeafe;
   border-radius: 11px;
   background: #ffffff;
-}
-
-.reply-preview {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
-}
-
-.reply-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.reply-copy strong {
-  color: #2563eb;
-  font-size: 12px;
-}
-
-.reply-copy span {
-  color: #4b5563;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .mini-close {
@@ -806,6 +805,7 @@ textarea {
 }
 
 .composer {
+  flex: none;
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -895,6 +895,7 @@ textarea {
 }
 
 .composer-foot {
+  flex: none;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -907,22 +908,25 @@ textarea {
 
 /* ---------- Misc ---------- */
 .back-btn {
-  display: block;
-  width: 100%;
-  margin-top: 16px;
-  padding: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 15px;
   border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #374151;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .back-btn:hover {
-  background: #f3f4f6;
+  border-color: #2563eb;
+  background: #f0f7ff;
+  color: #2563eb;
 }
 
 .img-overlay {
@@ -1117,7 +1121,17 @@ textarea {
   }
 
   .container {
-    padding: 18px 10px 42px;
+    padding: 10px 10px 12px;
+  }
+
+  .page-topbar {
+    margin-bottom: 9px;
+  }
+
+  .back-btn {
+    min-height: 37px;
+    padding: 8px 13px;
+    font-size: 13px;
   }
 
   .chat-card {
@@ -1143,16 +1157,16 @@ textarea {
   }
 
   .start-view {
-    padding: 24px 18px;
+    padding: 18px;
+  }
+
+  .start-copy {
+    margin-bottom: 18px;
   }
 
   .start-grid {
     grid-template-columns: 1fr;
-  }
-
-  .chat-room {
-    height: calc(100dvh - 142px);
-    min-height: 500px;
+    gap: 14px;
   }
 
   .messages {
@@ -1192,7 +1206,6 @@ textarea {
     padding-right: 12px;
   }
 
-  .reply-preview,
   .attachment-preview {
     margin-left: 9px;
     margin-right: 9px;
@@ -1201,6 +1214,56 @@ textarea {
   .img-close {
     top: 8px;
     right: 8px;
+  }
+}
+
+@media (max-height: 680px) {
+  .chat-header {
+    padding: 12px 16px;
+  }
+
+  .start-view {
+    padding: 14px 18px;
+  }
+
+  .start-copy {
+    margin-bottom: 13px;
+  }
+
+  .start-copy h2 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .start-copy p {
+    font-size: 13px;
+  }
+
+  .start-grid {
+    gap: 11px;
+  }
+
+  .field input {
+    padding: 10px 12px;
+  }
+
+  .start-actions {
+    margin-top: 14px;
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    min-height: 42px;
+    padding: 10px 16px;
+  }
+
+  .profile-bar {
+    padding: 8px 14px;
+  }
+
+  .messages {
+    padding-top: 14px;
+    padding-bottom: 14px;
   }
 }
 

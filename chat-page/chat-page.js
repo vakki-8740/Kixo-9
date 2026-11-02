@@ -20,9 +20,6 @@ const profileSummary = document.getElementById("profileSummary");
 const closedBanner = document.getElementById("closedBanner");
 const messagesEl = document.getElementById("chatMessages");
 const scrollBottomBtn = document.getElementById("scrollBottomBtn");
-const replyPreview = document.getElementById("replyPreview");
-const replyTitle = document.getElementById("replyTitle");
-const replyText = document.getElementById("replyText");
 const attachmentPreview = document.getElementById("attachmentPreview");
 const chatForm = document.getElementById("chatForm");
 const messageInput = document.getElementById("messageInput");
@@ -54,7 +51,6 @@ let settingsUnsub = null;
 let presenceTimer = null;
 let adminLastSeen = 0;
 let settingsData = null;
-let currentReply = null;
 let pendingAttachment = null;
 let localSequence = 0;
 let toastTimer = null;
@@ -385,13 +381,6 @@ function formatSize(bytes) {
   return (value / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-function messagePreview(message) {
-  if (!message) return "Attachment";
-  if (message.type === "image") return message.text || "Image";
-  if (message.type === "file") return message.fileName || "PDF file";
-  return message.text || "Message";
-}
-
 function safeAttachmentUrl(value) {
   const url = String(value || "");
   if (/^(data:|blob:|https:\/\/)/i.test(url)) return url;
@@ -447,16 +436,6 @@ function buildMessage(message) {
     sender.className = "sender-label";
     sender.textContent = "Support Team";
     bubble.appendChild(sender);
-  }
-
-  if (message.replyTo) {
-    const quote = document.createElement("div");
-    quote.className = "reply-quote";
-    const who = document.createElement("b");
-    who.textContent = message.replyTo.sender === "admin" ? "Support Team" : "You";
-    quote.appendChild(who);
-    quote.appendChild(document.createTextNode(message.replyTo.text || "Attachment"));
-    bubble.appendChild(quote);
   }
 
   if (message.type === "image") {
@@ -550,10 +529,6 @@ function buildMessage(message) {
   const actions = document.createElement("div");
   actions.className = "message-actions";
 
-  const replyButton = createAction("Reply", "reply", false);
-  replyButton.addEventListener("click", () => setReply(message));
-  actions.appendChild(replyButton);
-
   if (message.type === "text" && message.text) {
     const copyButton = createAction("Copy", "copy", false);
     copyButton.addEventListener("click", () => copyMessageText(message.text));
@@ -637,24 +612,6 @@ function scrollToBottom(smooth) {
   });
 }
 
-function setReply(message) {
-  currentReply = {
-    id: message.id || message.clientId || "",
-    sender: message.sender || "user",
-    text: messagePreview(message).slice(0, 160),
-  };
-  replyTitle.textContent = message.sender === "admin" ? "Replying to Support Team" : "Replying to you";
-  replyText.textContent = currentReply.text;
-  replyPreview.hidden = false;
-  messageInput.focus();
-}
-
-function clearReply() {
-  currentReply = null;
-  replyPreview.hidden = true;
-  replyText.textContent = "";
-}
-
 async function copyMessageText(text) {
   let copied = false;
   if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
@@ -708,12 +665,6 @@ function cleanRemotePayload(message) {
     clientId: message.clientId,
     edited: false,
   };
-  if (message.replyTo) {
-    payload.replyTo = {
-      sender: message.replyTo.sender,
-      text: message.replyTo.text,
-    };
-  }
   return payload;
 }
 
@@ -779,12 +730,6 @@ function addLocalAttachmentMessage(caption) {
     _seq: ++localSequence,
   };
 
-  if (currentReply) {
-    localMessage.replyTo = {
-      sender: currentReply.sender,
-      text: currentReply.text,
-    };
-  }
 
   localMessages.push(localMessage);
   pendingAttachment = null;
@@ -804,7 +749,6 @@ async function sendCurrentMessage() {
     addLocalAttachmentMessage(text);
     messageInput.value = "";
     clearDraft();
-    clearReply();
     autoResizeInput();
     updateComposerState();
     showToast("File preview added on this device only.", "ok");
@@ -830,17 +774,10 @@ async function sendCurrentMessage() {
     _seq: ++localSequence,
   };
 
-  if (currentReply) {
-    localMessage.replyTo = {
-      sender: currentReply.sender,
-      text: currentReply.text,
-    };
-  }
 
   localMessages.push(localMessage);
   messageInput.value = "";
   clearDraft();
-  clearReply();
   autoResizeInput();
   updateComposerState();
   renderMessages({ scrollBottom: true });
@@ -1139,8 +1076,6 @@ chatRoomView.addEventListener("drop", (e) => {
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (file) selectAttachment(file, file.type && file.type.startsWith("image/") ? "image" : "file");
 });
-
-document.getElementById("clearReplyBtn").addEventListener("click", clearReply);
 
 messagesEl.addEventListener("scroll", () => {
   if (isNearBottom()) scrollBottomBtn.hidden = true;
