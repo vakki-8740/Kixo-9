@@ -23,9 +23,9 @@ const chatForm = document.getElementById("chatForm");
 const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const imageBtn = document.getElementById("imageBtn");
-const pdfBtn = document.getElementById("pdfBtn");
+const fileBtn = document.getElementById("fileBtn");
 const imageInput = document.getElementById("imageInput");
-const pdfInput = document.getElementById("pdfInput");
+const fileInput = document.getElementById("fileInput");
 const charCount = document.getElementById("charCount");
 const messagePopupOverlay = document.getElementById("messagePopupOverlay");
 const messagePopupSender = document.getElementById("messagePopupSender");
@@ -202,7 +202,7 @@ function updateComposerState() {
 
   messageInput.disabled = closed;
   imageBtn.disabled = closed;
-  pdfBtn.disabled = closed;
+  fileBtn.disabled = closed;
   sendBtn.disabled = !(canSendLocal || canSendText);
   charCount.textContent = messageInput.value.length + " / " + MAX_MESSAGE_LENGTH;
 }
@@ -390,6 +390,31 @@ function formatSize(bytes) {
   return (value / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+function fileExtension(fileName) {
+  const name = String(fileName || "").trim();
+  const index = name.lastIndexOf(".");
+  return index > 0 && index < name.length - 1 ? name.slice(index + 1).toUpperCase() : "";
+}
+
+function fileTypeLabel(fileName, mimeType) {
+  const extension = fileExtension(fileName);
+  if (extension) return extension;
+
+  const mime = String(mimeType || "").split(";")[0].trim();
+  if (!mime) return "FILE";
+
+  const subtype = mime.split("/").pop() || "";
+  return subtype.replace(/^x-/i, "").toUpperCase() || "FILE";
+}
+
+function messageFileTypeLabel(message) {
+  const rawType = String((message && message.fileType) || "").trim();
+  if (rawType && !rawType.includes("/") && rawType.toLowerCase() !== "file") {
+    return rawType.toUpperCase();
+  }
+  return fileTypeLabel(message && message.fileName, rawType || (message && message.mimeType));
+}
+
 function fullMessageDate(timestamp) {
   if (!timestamp) return "-";
   return new Date(timestamp).toLocaleDateString([], {
@@ -517,21 +542,19 @@ function buildMessage(message) {
       openMessagePopup(message);
     });
 
+    const fileLabel = messageFileTypeLabel(message);
     const icon = document.createElement("div");
     icon.className = "file-icon";
-    const fileExtension = String(message.fileName || "").split(".").pop();
-    icon.textContent = String(message.fileType || fileExtension || "FILE")
-      .slice(0, 4)
-      .toUpperCase();
+    icon.textContent = fileLabel.slice(0, 4);
 
     const info = document.createElement("div");
     info.className = "file-info";
     const name = document.createElement("div");
     name.className = "file-name";
-    name.textContent = message.fileName || "PDF file";
+    name.textContent = message.fileName || "File";
     const meta = document.createElement("div");
     meta.className = "file-meta";
-    meta.textContent = [message.fileType || "PDF", formatSize(message.fileSize)]
+    meta.textContent = [fileLabel, formatSize(message.fileSize)]
       .filter(Boolean)
       .join(" · ");
     info.appendChild(name);
@@ -706,7 +729,7 @@ function renderMessagePopup() {
       messagePopupPreview.appendChild(caption);
     }
   } else if (message.type === "file") {
-    const fileText = [message.fileName || "PDF file", message.fileType || "PDF", formatSize(message.fileSize)]
+    const fileText = [message.fileName || "File", messageFileTypeLabel(message), formatSize(message.fileSize)]
       .filter(Boolean)
       .join(" · ");
     messagePopupPreview.textContent = message.text ? fileText + "\n" + message.text : fileText;
@@ -979,7 +1002,7 @@ function addLocalAttachmentMessage(caption) {
     objectUrl: pendingAttachment.url,
     fileName: pendingAttachment.file.name,
     fileSize: pendingAttachment.file.size,
-    fileType: pendingAttachment.kind === "file" ? "PDF" : "Image",
+    fileType: pendingAttachment.fileType || (pendingAttachment.kind === "image" ? "Image" : "FILE"),
     createdAt: now,
     _localOnly: true,
     _seq: ++localSequence,
@@ -1059,7 +1082,7 @@ function renderAttachmentPreview() {
   } else {
     const icon = document.createElement("div");
     icon.className = "attachment-file-icon";
-    icon.textContent = "PDF";
+    icon.textContent = (pendingAttachment.fileType || "FILE").slice(0, 4);
     attachmentPreview.appendChild(icon);
   }
 
@@ -1073,7 +1096,7 @@ function renderAttachmentPreview() {
   const sub = document.createElement("div");
   sub.className = "attachment-sub";
   sub.textContent =
-    (pendingAttachment.kind === "image" ? "Image" : "PDF") +
+    (pendingAttachment.fileType || (pendingAttachment.kind === "image" ? "Image" : "FILE")) +
     " · " +
     formatSize(pendingAttachment.file.size);
 
@@ -1103,27 +1126,17 @@ function clearPendingAttachment() {
   }
   pendingAttachment = null;
   imageInput.value = "";
-  pdfInput.value = "";
+  fileInput.value = "";
   renderAttachmentPreview();
 }
 
 function selectAttachment(file, expectedKind) {
   if (!file) return;
 
-  const isImage = file.type && file.type.startsWith("image/");
-  const isPdf =
-    file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+  const isImage = !!(file.type && file.type.startsWith("image/"));
 
   if (expectedKind === "image" && !isImage) {
     showToast("Please choose an image file.", "err");
-    return;
-  }
-  if (expectedKind === "file" && !isPdf) {
-    showToast("Please choose a PDF file.", "err");
-    return;
-  }
-  if (!isImage && !isPdf) {
-    showToast("Only image and PDF files are supported.", "err");
     return;
   }
   if (file.size > MAX_LOCAL_FILE) {
@@ -1145,6 +1158,7 @@ function selectAttachment(file, expectedKind) {
     kind: isImage ? "image" : "file",
     file,
     url,
+    fileType: isImage ? "Image" : fileTypeLabel(file.name, file.type),
   };
   renderAttachmentPreview();
   messageInput.focus();
@@ -1294,24 +1308,22 @@ messageInput.addEventListener("paste", (e) => {
   const files = e.clipboardData && e.clipboardData.files;
   if (files && files.length) {
     const file = files[0];
-    if (file.type && file.type.startsWith("image/")) {
-      e.preventDefault();
-      selectAttachment(file, "image");
-    }
+    e.preventDefault();
+    selectAttachment(file, file.type && file.type.startsWith("image/") ? "image" : "file");
   }
 });
 
 imageBtn.addEventListener("click", () => imageInput.click());
-pdfBtn.addEventListener("click", () => pdfInput.click());
+fileBtn.addEventListener("click", () => fileInput.click());
 
 imageInput.addEventListener("change", () => {
   selectAttachment(imageInput.files[0], "image");
   imageInput.value = "";
 });
 
-pdfInput.addEventListener("change", () => {
-  selectAttachment(pdfInput.files[0], "file");
-  pdfInput.value = "";
+fileInput.addEventListener("change", () => {
+  selectAttachment(fileInput.files[0], "file");
+  fileInput.value = "";
 });
 
 chatRoomView.addEventListener("dragover", (e) => {

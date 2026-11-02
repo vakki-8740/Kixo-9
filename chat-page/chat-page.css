@@ -155,18 +155,10 @@ textarea {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: #2563eb;
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #ffffff;
+  display: block;
+  object-fit: contain;
   flex: none;
-}
-
-.support-avatar svg {
-  width: 23px;
-  height: 23px;
-  stroke: currentColor;
 }
 
 .chat-heading {
