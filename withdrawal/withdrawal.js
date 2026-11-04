@@ -3,6 +3,7 @@ const COMPLAINT_PROBLEM = "Withdrawal Problem";
 const UPLOAD_HINT = "Select screenshot";
 const UPLOAD_MISSING = "Screenshot required";
 const IMAGE_REQUIRED = true;
+const SUCCESS_REDIRECT_URL = "../chat-page/index.html";
 
 const form = document.getElementById("complaintForm");
 const amountInput = document.getElementById("amount");
@@ -446,7 +447,7 @@ function resetForm() {
 
 function dismissPopup() {
   popupOverlay.classList.remove("show");
-  window.location.href = "../mailbox/index.html";
+  window.location.href = SUCCESS_REDIRECT_URL;
 }
 
 closePopup.addEventListener("click", dismissPopup);
