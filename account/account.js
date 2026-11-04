@@ -3,6 +3,7 @@ const COMPLAINT_PROBLEM = "Account Problem";
 const UPLOAD_HINT = "Select issue image";
 const UPLOAD_MISSING = "Issue image required";
 const IMAGE_REQUIRED = false;
+const SUCCESS_REDIRECT_URL = "../chat-page/index.html";
 
 const form = document.getElementById("complaintForm");
 const writtenProblemInput = document.getElementById("writtenProblem");
@@ -439,7 +440,7 @@ function resetForm() {
 
 function dismissPopup() {
   popupOverlay.classList.remove("show");
-  window.location.href = "../mailbox/index.html";
+  window.location.href = SUCCESS_REDIRECT_URL;
 }
 
 closePopup.addEventListener("click", dismissPopup);
